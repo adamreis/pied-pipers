@@ -44,7 +44,7 @@ public class Player extends piedpipers.sim.Player {
 		// move to the opening.
 		Point current = pipers[id];
 		Point gate = new Point(dimension/2, dimension/2);
-		double ox = 0;
+		double ox = 0; // delta x/y
 		double oy = 0;
 		if (getSide(current) == 0) {
 			if (finishedRound) {
@@ -106,11 +106,13 @@ public class Player extends piedpipers.sim.Player {
 		// Assumed true until we find a rat not in influence
 		boolean allRatsFound = true;
 		for(Point rat : rats) {
-			double ratDist = distance(current, rat);
-			if (ratDist < closestSoFar && ratDist > 10) {
-				allRatsFound = false;
-				closestSoFar = ratDist;
-				closestRat = rat;
+			if (getSide(rat) != 0) {
+				double ratDist = distance(current, rat);
+				if (ratDist < closestSoFar && ratDist > 10) {
+					allRatsFound = false;
+					closestSoFar = ratDist;
+					closestRat = rat;
+				}
 			}
 		}
 		if (allRatsFound) {
