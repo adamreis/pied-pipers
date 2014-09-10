@@ -19,7 +19,7 @@ public class Player extends piedpipers.sim.Player {
 	
 	public void init() {
 		thetas = new int[npipers];
-		dropOffPoint = new Point(dimension/4, dimension/2);
+		dropOffPoint = new Point(0, dimension/2);
 		/*for (int i=0; i< npipers; i++) {
 			Random random = new Random();
 			int theta = random.nextInt(180);
@@ -48,7 +48,7 @@ public class Player extends piedpipers.sim.Player {
 		double oy = 0;
 		if (getSide(current) == 0) {
 			if (finishedRound) {
-				if (distance(current, dropOffPoint) > 10) {
+				if (distance(current, dropOffPoint) > 1) {
 					this.music = true;
 					Point dropOffPoint = new Point(dimension/4, dimension/2);
 					double dist = distance(current, dropOffPoint);
