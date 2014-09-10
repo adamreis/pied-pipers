@@ -589,7 +589,7 @@ public class Piedpipers {
 	void playStep() {
 		tick++;
 
-		// move the player dogs
+		// move the player rats
 		Point[] next = new Point[npipers];
 		for (int d = 0; d < npipers; ++d) {
 			Point[] pipercopy = copyPointArray(pipers);
