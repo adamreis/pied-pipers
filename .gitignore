@@ -17,3 +17,4 @@ bin/*
 # eclipse stuff
 .classpath
 .project
+/bin/
