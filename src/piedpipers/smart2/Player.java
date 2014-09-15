@@ -61,22 +61,7 @@ public class Player extends piedpipers.sim.Player {
 			}
 		}
 		
-		// Update predicted positions
-		for (int i = 0; i < rats.length; i++) {
-			predictedRatPositions.get(i).clear();
-			Point oldPosition = rats[i];
-			if (distance(pipers[id], oldPosition) < 10) {
-				for (int j = 0; j < predictionLookAhead; j++) {
-					predictedRatPositions.get(i).add(oldPosition);
-				}
-				continue;
-			}
-			for (int j = 0; j < predictionLookAhead; j++) {
-				Point newPosition = getNewPosition(oldPosition, ratThetas[i], i);
-				predictedRatPositions.get(i).add(newPosition);
-				oldPosition = newPosition;
-			}
-		}
+		
 		
 		// If the piper is on the wrong side of the fence,
 		// move to the opening.
@@ -140,6 +125,25 @@ public class Player extends piedpipers.sim.Player {
 	
 	
 	Point findClosestRatNotInInfluence(Point current, Point[] rats, Point[] pipers) {
+		// Update predicted positions
+		for (int i = 0; i < rats.length; i++) {
+			predictedRatPositions.get(i).clear();
+			Point oldPosition = rats[i];
+			
+			// If a rat is already in your control, then don't bother calculate future positions!
+			if (distance(pipers[id], oldPosition) < 10) {
+				for (int j = 0; j < predictionLookAhead; j++) {
+					predictedRatPositions.get(i).add(oldPosition);
+				}
+				continue;
+			}
+			for (int j = 0; j < predictionLookAhead; j++) {
+				Point newPosition = getNewPosition(oldPosition, ratThetas[i], i);
+				predictedRatPositions.get(i).add(newPosition);
+				oldPosition = newPosition;
+			}
+		}
+		
 		// First, check if all rats have been captured
 		boolean allRatsFound = true;
 		for (Point r: rats) {
