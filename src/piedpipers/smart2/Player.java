@@ -13,6 +13,8 @@ public class Player extends piedpipers.sim.Player {
 	static double mpspeed = 0.099999;
 	static double WALK_SPEED = 0.1; // 1m/s, walking speed for rats
 	
+	static int predictionLookAhead = 2000; 
+	
 	static Point dropOffPoint = new Point();
 	
 	static Point target = new Point();
@@ -55,7 +57,7 @@ public class Player extends piedpipers.sim.Player {
 		if (numMoves == 1) {
 			predictedRatPositions = new ArrayList<ArrayList<Point>>();
 			for (int i = 0; i < rats.length; i++) {
-				predictedRatPositions.add(new ArrayList<Point>(5000));
+				predictedRatPositions.add(new ArrayList<Point>(predictionLookAhead));
 			}
 		}
 		
@@ -64,12 +66,12 @@ public class Player extends piedpipers.sim.Player {
 			predictedRatPositions.get(i).clear();
 			Point oldPosition = rats[i];
 			if (distance(pipers[id], oldPosition) < 10) {
-				for (int j = 0; j < 5000; j++) {
+				for (int j = 0; j < predictionLookAhead; j++) {
 					predictedRatPositions.get(i).add(oldPosition);
 				}
 				continue;
 			}
-			for (int j = 0; j < 5000; j++) {
+			for (int j = 0; j < predictionLookAhead; j++) {
 				Point newPosition = getNewPosition(oldPosition, ratThetas[i], i);
 				predictedRatPositions.get(i).add(newPosition);
 				oldPosition = newPosition;
@@ -158,7 +160,7 @@ public class Player extends piedpipers.sim.Player {
 		}
 		
 		
-		for (int i = 0; i < 5000; i++) {
+		for (int i = 0; i < predictionLookAhead; i++) {
 			for (ArrayList<Point> predicted : predictedRatPositions) {
 				double ratDist = distance(current, predicted.get(i));
 				if ((ratDist > 10) && (ratDist < (10 + i * mpspeed))) {
