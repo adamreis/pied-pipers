@@ -378,10 +378,23 @@ public class Piedpipers {
 			g2.fill(e);
 		}
 
+		public void drawCircle(Graphics2D g2, Point p, PType type) {
+			Ellipse2D eOuter = new Ellipse2D.Double(p.x * s - (WALK_DIST * s) / 2 + ox, p.y
+					* s - (WALK_DIST * s) / 2 + oy, WALK_DIST * s, WALK_DIST * s);
+			Ellipse2D eInner = new Ellipse2D.Double(p.x * s - (STOP_DIST * s) / 2 + ox, p.y
+					* s - (STOP_DIST * s) / 2 + oy, STOP_DIST * s, STOP_DIST * s);
+			g2.setStroke(stroke);
+			g2.setPaint(Color.BLUE);
+			g2.draw(eOuter);
+			g2.setPaint(Color.RED);
+			g2.draw(eInner);
+		}
+
 		public void drawPipers(Graphics2D g2) {
 			for (int i = 0; i < npipers; ++i) {
 				if (players[i].music) {
 					drawPoint(g2, pipers[i], PType.PTYPE_MUSICPIPERS);
+					drawCircle(g2, pipers[i], PType.PTYPE_MUSICPIPERS);
 				} else {
 					drawPoint(g2, pipers[i], PType.PTYPE_PIPERS);
 				}
