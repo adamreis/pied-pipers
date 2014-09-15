@@ -9,8 +9,8 @@ import piedpipers.sim.Point;
 public class Player extends piedpipers.sim.Player {
 	static int npipers;
 	
-	static double pspeed = 0.49;
-	static double mpspeed = 0.09;
+	static double pspeed = 0.49999;
+	static double mpspeed = 0.099999;
 	static double WALK_SPEED = 0.1; // 1m/s, walking speed for rats
 	
 	static Point dropOffPoint = new Point();
@@ -51,11 +51,11 @@ public class Player extends piedpipers.sim.Player {
 			this.init();initi = true;
 		}
 		numMoves ++;
-		ratThetas = thetas;
+		ratThetas = thetas.clone();
 		if (numMoves == 1) {
 			predictedRatPositions = new ArrayList<ArrayList<Point>>();
 			for (int i = 0; i < rats.length; i++) {
-				predictedRatPositions.add(new ArrayList<Point>(500));
+				predictedRatPositions.add(new ArrayList<Point>(5000));
 			}
 		}
 		
@@ -63,7 +63,13 @@ public class Player extends piedpipers.sim.Player {
 		for (int i = 0; i < rats.length; i++) {
 			predictedRatPositions.get(i).clear();
 			Point oldPosition = rats[i];
-			for (int j = 0; j < 500; j++) {
+			if (distance(pipers[id], oldPosition) < 10) {
+				for (int j = 0; j < 5000; j++) {
+					predictedRatPositions.get(i).add(oldPosition);
+				}
+				continue;
+			}
+			for (int j = 0; j < 5000; j++) {
 				Point newPosition = getNewPosition(oldPosition, ratThetas[i], i);
 				predictedRatPositions.get(i).add(newPosition);
 				oldPosition = newPosition;
@@ -105,7 +111,7 @@ public class Player extends piedpipers.sim.Player {
 		else {
 			// You're on the right side.
 			// Find closest rat. Move in that direction.
-			Point closestRat = findClosestRatNotInInfluence(current, rats);
+			Point closestRat = findClosestRatNotInInfluence(current, rats, pipers);
 			if (closestRat == null) {
 				// All rats have been found. Move back toward gate.
 				finishedRound = true;
@@ -131,13 +137,33 @@ public class Player extends piedpipers.sim.Player {
 	}
 	
 	
-	Point findClosestRatNotInInfluence(Point current, Point[] rats) {
-		for (int i = 0; i < 500; i++) {
-//			System.out.println("i = " + i);
+	Point findClosestRatNotInInfluence(Point current, Point[] rats, Point[] pipers) {
+		// First, check if all rats have been captured
+		boolean allRatsFound = true;
+		for (Point r: rats) {
+			boolean thisRatFound = false;
+			for (Point p: pipers) {
+				if (distance(r, p) <= 10) {
+					thisRatFound = true;
+					break;
+				}
+			}
+			if (!thisRatFound) {
+				allRatsFound = false;
+				break;
+			}
+		}
+		if (allRatsFound) {
+			return null;
+		}
+		
+		
+		for (int i = 0; i < 5000; i++) {
 			for (ArrayList<Point> predicted : predictedRatPositions) {
 				double ratDist = distance(current, predicted.get(i));
-				if (ratDist > 10 && ratDist < (10 + i * mpspeed)) {
+				if ((ratDist > 10) && (ratDist < (10 + i * mpspeed))) {
 					System.out.println("returned at i = " + i);
+					System.out.println("ratDist = " + ratDist);
 					return predicted.get(i);
 				}
 			}
@@ -146,24 +172,18 @@ public class Player extends piedpipers.sim.Player {
 		double closestSoFar = Integer.MAX_VALUE;
 		Point closestRat = new Point();
 		// Assumed true until we find a rat not in influence
-		boolean allRatsFound = true;
 		for(Point rat : rats) {
 			if (getSide(rat) == 0) {
 				continue;
 			}
 			double ratDist = distance(current, rat);
 			if (ratDist < closestSoFar && ratDist > 10) {
-				allRatsFound = false;
 				closestSoFar = ratDist;
 				closestRat = rat;
 			}
 		}
-		if (allRatsFound) {
-			return null;
-		}
-		else {
-			return closestRat;
-		}
+
+		return closestRat;
 	}
 	
 	boolean closetoWall (Point current) {
