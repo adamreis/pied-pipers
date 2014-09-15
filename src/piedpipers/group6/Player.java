@@ -1,4 +1,4 @@
-package piedpipers.smart1;
+package piedpipers.group6;
 
 import java.util.Random;
 
