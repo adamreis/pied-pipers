@@ -45,14 +45,15 @@ public class Player extends piedpipers.sim.Player {
 	// Return: the next position
 	// my position: pipers[id-1]
 
-	public Point move(Point[] pipers, // positions of pipers
-			Point[] rats, // positions of the rats
-			int[] thetas) { // angles of the rats
+	public Point move(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
 		
 		if (!initi) {
-			this.init();initi = true;
+			this.init();
+			initi = true;
 		}
 		numMoves ++;
+//		System.out.println("thetas: " + piedpipers.sim.Piedpipers.thetas.toString());
+//		ratThetas = piedpipers.sim.Piedpipers.thetas.clone();
 		ratThetas = thetas.clone();
 		if (numMoves == 1) {
 			predictedRatPositions = new ArrayList<ArrayList<Point>>();
@@ -60,7 +61,6 @@ public class Player extends piedpipers.sim.Player {
 				predictedRatPositions.add(new ArrayList<Point>(predictionLookAhead));
 			}
 		}
-		
 		
 		
 		// If the piper is on the wrong side of the fence,
@@ -226,10 +226,10 @@ public class Player extends piedpipers.sim.Player {
 		return updatePosition(ratPosition, ox, oy, ratId);
 	}
 	
-	Point updatePosition(Point now, double ox, double oy, int rat)	 {
-		
+	Point updatePosition(Point now, double ox, double oy, int rat) {
 		double nx = now.x + ox, ny = now.y + oy;
 		int id_rat = rat;
+		
 		// hit the left fence
 		if (nx < 0) {
 			// System.err.println("RAT HITS THE LEFT FENCE!!!");
@@ -242,7 +242,8 @@ public class Player extends piedpipers.sim.Player {
 			double ox2 = -(ox - moved);
 			//Random random = new Random();
 			
-			int theta = random.nextInt(360);
+			//int theta = random.nextInt(360);
+			int theta = -ratThetas[rat];
 			ratThetas[rat] = theta;
 			return updatePosition(temp, ox2, oy, id_rat);
 		}
@@ -255,7 +256,7 @@ public class Player extends piedpipers.sim.Player {
 			double ox2 = -(ox - moved);
 			//Random random = new Random();
 			
-			int theta = random.nextInt(360);
+			int theta = -ratThetas[rat];
 			ratThetas[rat] = theta;
 			return updatePosition(temp, ox2, oy, id_rat);
 		}
@@ -268,7 +269,7 @@ public class Player extends piedpipers.sim.Player {
 			double oy2 = -(oy - moved);
 			//Random random = new Random();
 		
-			int theta = random.nextInt(360);
+			int theta = 180-ratThetas[rat];
 			ratThetas[rat] = theta;
 			return updatePosition(temp, ox, oy2, id_rat);
 		}
@@ -279,7 +280,7 @@ public class Player extends piedpipers.sim.Player {
 			double moved = (dimension - now.y);
 			double oy2 = -(oy - moved);
 			//Random random = new Random();
-			int theta = random.nextInt(360);
+			int theta = 180-ratThetas[rat];
 			ratThetas[rat] = theta;
 			return updatePosition(temp, ox, oy2, id_rat);
 		}
@@ -295,7 +296,7 @@ public class Player extends piedpipers.sim.Player {
 			double moved = (dimension/2 - now.x);
 			double ox2 = -(ox - moved);
 			//Random random = new Random();
-			int theta = random.nextInt(360);
+			int theta = -ratThetas[rat];
 			ratThetas[rat] = theta;
 			return updatePosition(temp, ox2, oy, id_rat);
 		}

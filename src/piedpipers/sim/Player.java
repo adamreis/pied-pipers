@@ -14,7 +14,6 @@ public abstract class Player {
 	// Return: the next position
 	// my position: pipers[id-1]
 	public abstract Point move(Point[] pipers, // positions of pipers
-			Point[] rats, // positions of the rats
-			int[] thetas); // angles of the rats
+			Point[] rats, boolean[] pipermusic, int[] thetas); // positions of the rats
 
 }
