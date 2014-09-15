@@ -19,9 +19,8 @@ public class Player extends piedpipers.sim.Player {
 	static boolean finishedRound = false;
 	static boolean initi = false;
 	
-	static ArrayList<ArrayList<Point>> knownRatPositions;
 	static ArrayList<ArrayList<Point>> predictedRatPositions;
-	static int[] ratThetas;
+	int[] ratThetas;
 	static int numMoves;
 	
 	Random random;
@@ -45,45 +44,31 @@ public class Player extends piedpipers.sim.Player {
 	// my position: pipers[id-1]
 
 	public Point move(Point[] pipers, // positions of pipers
-			Point[] rats) { // positions of the rats
+			Point[] rats, // positions of the rats
+			int[] thetas) { // angles of the rats
 		
 		if (!initi) {
 			this.init();initi = true;
 		}
 		numMoves ++;
+		ratThetas = thetas;
 		if (numMoves == 1) {
-			System.out.println("this is happening when numMoves is 1");
-			knownRatPositions = new ArrayList<ArrayList<Point>>();
 			predictedRatPositions = new ArrayList<ArrayList<Point>>();
 			for (int i = 0; i < rats.length; i++) {
-				knownRatPositions.add(new ArrayList<Point>(2));
 				predictedRatPositions.add(new ArrayList<Point>(500));
 			}
-			
-			ratThetas = new int[rats.length];
-			}
+		}
 		
-		// Update known rat positions, angles, and predicted positions
+		// Update predicted positions
 		for (int i = 0; i < rats.length; i++) {
-			
-			knownRatPositions.get(i).add(rats[i]);
-			if (numMoves > 2) {
-				knownRatPositions.get(i).remove(0);
-				Point p1 = knownRatPositions.get(i).get(0);
-				Point p2 = knownRatPositions.get(i).get(1);
-				ratThetas[i] = getAngle(p1, p2);
-				
-				Point oldPosition = p2;
-				predictedRatPositions.get(i).clear();
-				for (int j = 0; j < 500; j++) {
-					Point newPosition = getNewPosition(oldPosition, ratThetas[i], i);
-					predictedRatPositions.get(i).add(newPosition);
-					oldPosition = newPosition;
-				}
-//				System.out.println("Predicted positions: " + predictedRatPositions);
+			predictedRatPositions.get(i).clear();
+			Point oldPosition = rats[i];
+			for (int j = 0; j < 500; j++) {
+				Point newPosition = getNewPosition(oldPosition, ratThetas[i], i);
+				predictedRatPositions.get(i).add(newPosition);
+				oldPosition = newPosition;
 			}
 		}
-		System.out.println("rat thetas: " +  Arrays.toString(ratThetas));
 		
 		// If the piper is on the wrong side of the fence,
 		// move to the opening.
@@ -145,14 +130,6 @@ public class Player extends piedpipers.sim.Player {
 		return current;
 	}
 	
-	int getAngle(Point p1, Point p2) {
-	    double angle = (double) Math.toDegrees(Math.atan2(p2.y - p1.y, p2.x - p1.x));
-
-	    if(angle < 0){
-	        angle += 360.0;
-	    }
-	    return (int) Math.round(angle);
-	}
 	
 	Point findClosestRatNotInInfluence(Point current, Point[] rats) {
 		for (int i = 0; i < 500; i++) {
@@ -160,6 +137,7 @@ public class Player extends piedpipers.sim.Player {
 			for (ArrayList<Point> predicted : predictedRatPositions) {
 				double ratDist = distance(current, predicted.get(i));
 				if (ratDist > 10 && ratDist < (10 + i * mpspeed)) {
+					System.out.println("returned at i = " + i);
 					return predicted.get(i);
 				}
 			}

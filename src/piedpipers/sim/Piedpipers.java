@@ -644,7 +644,7 @@ public class Piedpipers {
 			Point[] pipercopy = copyPointArray(pipers);
 
 			try {
-				next[d] = players[d].move(pipercopy, rats);
+				next[d] = players[d].move(pipercopy, rats, thetas);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.err.println("[ERROR] Player throws exception!!!!");
