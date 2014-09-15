@@ -107,8 +107,7 @@ public class Player extends piedpipers.sim.Player {
 			}
 			else {
 				// Find closest rat. Move in that direction.
-				Point closestRat = findClosestRatInSectionNotInInfluence(id, current, rats);
-				//System.out.println("closest rat for piper " + id + " is at " + closestRat.x + ", " + closestRat.y);
+				Point closestRat = findClosestRatNotInAnyInfluence(id, pipers, rats);
 				if (closestRat == null) {
 					// All rats have been found. Move back toward gate.
 					finishedRound = true;
@@ -142,20 +141,37 @@ public class Player extends piedpipers.sim.Player {
 		return new Point(startX, startY);
 	}
 	
-	Point findClosestRatInSectionNotInInfluence(int id, Point current, Point[] rats) {
+	Point findClosestRatNotInAnyInfluence(int id, Point[] pipers, Point[] rats) {
 		double closestSoFar = Integer.MAX_VALUE;
 		Point closestRat = new Point();
 		// Assumed true until we find a rat not in influence
 		boolean allRatsFound = true;
-		System.out.println("findClosestRatInSection: the section is " + boundaries.get(id));
-		ArrayList<Point> ratsInSection = getRatsInSection(boundaries.get(id), rats);
-		for(Point rat : ratsInSection) {
-			double ratDist = distance(current, rat);
-			if (ratDist < closestSoFar && ratDist > 10) {
-				allRatsFound = false;
-				closestSoFar = ratDist;
-				closestRat = rat;
+		for(Point rat : rats) {
+			boolean ratAlreadyFound = false;
+			
+			// Calculate distances between all rats and all pipers
+			double[] ratDistanceToPipers = new double[pipers.length];
+			for (int i = 0; i<ratDistanceToPipers.length; i++) {
+				double ratToPiperI = distance(pipers[i], rat);
+				ratDistanceToPipers[i] = ratToPiperI;
+				// If the given rat is on the other side of the fence, skip it
+				if (getSide(rat.x, rat.y) == 0) {
+					ratAlreadyFound = true;
+				}
+				// If the given rat is already in the influence of a piper,
+				// skip it
+				if (ratToPiperI < 10){
+					ratAlreadyFound = true;
+				}
 			}
+			// If the given rat is up for grabs, check if it's closest.
+			if (!ratAlreadyFound) {
+				if (ratDistanceToPipers[id] < closestSoFar) {
+					allRatsFound = false;
+					closestSoFar = ratDistanceToPipers[id];
+					closestRat = rat;
+				}
+			}	
 		}
 		if (allRatsFound) {
 			return null;
