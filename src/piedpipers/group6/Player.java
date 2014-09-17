@@ -13,7 +13,9 @@ public class Player extends piedpipers.sim.Player {
 	static double mpspeed = 0.09;
 	static double WALK_SPEED = 0.1; // 1m/s, walking speed for rats
 	
-	static int predictionLookAhead = 2000; 
+	static int predictionLookAhead = 500;
+	
+	static double piperDropDistance = 4.0;
 	
 	static Point dropOffPoint = new Point();
 	
@@ -120,26 +122,46 @@ public class Player extends piedpipers.sim.Player {
 				oy = (piperStartPoint.y - current.y) / dist * pspeed;	
 			}
 			else {
-				// Find closest rat. Move in that direction.
-				Point closestRat = findClosestRatNotInInfluence(pipers[id], rats, pipers);
-				if (closestRat == null) {
-					// All rats have been found. Move back toward gate.
-					finishedRound = true;
-					this.music = true;
-					double dist = distance(current, gate);
-					assert dist > 0;
-					ox = (gate.x - current.x) / dist * mpspeed;
-					oy = (gate.y - current.y) / dist * mpspeed;
-					System.out.println("move toward the left side");	
-				}
-				else {
-					// All Rats have not been found; continue to catch em.
-					double dist = distance(current, closestRat);
-					ox = (closestRat.x - current.x) / dist * mpspeed;
-					oy = (closestRat.y - current.y) / dist * mpspeed;
-					this.music = true;
-					System.out.println("moved toward closest rat at " +
-							closestRat.x + ", " + closestRat.y);
+				// See if there's a playing piper nearby and if you are carrying rats
+				int closestPiperId = findClosestPiper(id, pipers);
+				if( closestPiperId != -1 
+						&& pipermusic[closestPiperId]
+						&& isInfluencingRats(pipers[id], rats) 
+						&& distance(current, pipers[closestPiperId]) > piperDropDistance) {
+					// if the piper close by is senior: drop the rats & run off
+					if( closestPiperId < id ) {
+						this.music = false;
+						hitTheWall = false;
+					}	
+				} else {
+					// Find closest rat. Move in that direction.
+					Point closestRat = findClosestRatNotInInfluence(pipers[id], rats, pipers);
+					if (closestRat == null) {
+						// All rats have been found. Move back toward gate.
+						finishedRound = true;
+						this.music = true;
+						double dist = distance(current, gate);
+						assert dist > 0;
+						ox = (gate.x - current.x) / dist * mpspeed;
+						oy = (gate.y - current.y) / dist * mpspeed;
+						System.out.println("move toward the left side");	
+					}
+					else {
+						// All Rats have not been found; continue to catch em.
+						double dist = distance(current, closestRat);
+						
+						if( isInfluencingRats(pipers[id], rats) ) {
+							this.music = true;
+							ox = (closestRat.x - current.x) / dist * mpspeed;
+							oy = (closestRat.y - current.y) / dist * mpspeed;
+						} else {
+							this.music = false;
+							ox = (closestRat.x - current.x) / dist * pspeed;
+							oy = (closestRat.y - current.y) / dist * pspeed;
+						}
+						System.out.println("moved toward closest rat at " +
+								closestRat.x + ", " + closestRat.y);
+					}
 				}
 			}
 		}
@@ -153,6 +175,16 @@ public class Player extends piedpipers.sim.Player {
 		int startX = dimension;
 		int startY = boundary[0] + (boundary[1] - boundary[0]) / 2;
 		return new Point(startX, startY);
+	}
+	
+	int findClosestPiper(int currentId, Point[] pipers) {
+		double distanceConsidered = 10.0;
+		for( int i = 0; i < currentId; i++ ) {
+			if( currentId != i && distance(pipers[currentId], pipers[i]) < distanceConsidered ) {
+				return i;
+			}
+		}
+		return -1;
 	}
 	
 	Point findClosestRatNotInInfluence(Point current, Point[] rats, Point[] pipers) {
@@ -236,6 +268,15 @@ public class Player extends piedpipers.sim.Player {
 			}
 		}
 		return ratsInSection;
+	}
+	
+	boolean isInfluencingRats(Point current, Point[] rats) {
+		for(int i = 0; i < rats.length; i++) {
+			if( distance(current, rats[i]) < 10.0 ) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	boolean closeToWall (Point current) {
