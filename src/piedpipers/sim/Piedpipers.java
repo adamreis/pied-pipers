@@ -53,7 +53,7 @@ public class Piedpipers {
 	static int MAX_TICKS = 100000;
 	static int seed;
 	static Random random;
-	static int[] thetas;
+	public static int[] thetas;
 
 	// list files below a certain directory
 	// can filter those having a specific extension constraint
@@ -241,7 +241,7 @@ public class Piedpipers {
 			int steps = 0;
 
 			if (e.getSource() == timer)
-				steps = 1;
+				steps = 10;
 			else if (e.getSource() == next)
 				steps = 1;
 			else if (e.getSource() == next10)
@@ -355,29 +355,41 @@ public class Piedpipers {
 
 			g2.draw(new Line2D.Double(0.5 * dimension * s + ox, OPEN_RIGHT * s
 					+ oy, 0.5 * dimension * s + ox, dimension * s + oy));
-
+			// draw rats
+						drawRats(g2);
 			// draw pipers
 			drawPipers(g2);
 
-			// draw rats
-			drawRats(g2);
+			
 		}
 
 		public void drawPoint(Graphics2D g2, Point p, PType type) {
-			if (type == PType.PTYPE_MUSICPIPERS)
+			if (type == PType.PTYPE_MUSICPIPERS) {
 				g2.setPaint(Color.BLUE);
-			else if (type == PType.PTYPE_PIPERS)
+				Ellipse2D e = new Ellipse2D.Double(p.x * s - PSIZE/2  + ox, p.y
+						* s - PSIZE/2  + oy, PSIZE, PSIZE);
+				g2.setStroke(stroke);
+				g2.draw(e);
+				g2.fill(e);
+			}
+			else if (type == PType.PTYPE_PIPERS) {
 				g2.setPaint(Color.ORANGE);
-			else
-				g2.setPaint(Color.GREEN);
+				Ellipse2D e = new Ellipse2D.Double(p.x * s - PSIZE/2  + ox, p.y
+						* s - PSIZE/2  + oy, PSIZE, PSIZE);
+				g2.setStroke(stroke);
+				g2.draw(e);
+				g2.fill(e);
+			}
+			else {
+				g2.setPaint(Color.BLACK);
 
 			Ellipse2D e = new Ellipse2D.Double(p.x * s - PSIZE / 2 + ox, p.y
 					* s - PSIZE / 2 + oy, PSIZE, PSIZE);
 			g2.setStroke(stroke);
 			g2.draw(e);
 			g2.fill(e);
-		}
-
+			}
+			}
 		public void drawCircle(Graphics2D g2, Point p, PType type) {
 			Ellipse2D eOuter = new Ellipse2D.Double(p.x * s - (WALK_DIST * s) / 2 + ox, p.y
 					* s - (WALK_DIST * s) / 2 + oy, WALK_DIST * s, WALK_DIST * s);
@@ -389,7 +401,7 @@ public class Piedpipers {
 			g2.setPaint(Color.RED);
 			g2.draw(eInner);
 		}
-
+		
 		public void drawPipers(Graphics2D g2) {
 			for (int i = 0; i < npipers; ++i) {
 				if (players[i].music) {
@@ -444,7 +456,7 @@ public class Piedpipers {
 			if (dist < STOP_DIST) {
 				rspeed = 0;
 				randommove = false;
-				Random random = new Random();
+				//Random random = new Random();
 				int theta = random.nextInt(360);
 				thetas[ratId] = theta;
 
@@ -477,6 +489,7 @@ public class Piedpipers {
 	Point updatePosition(Point now, double ox, double oy, int rat) {
 		double nx = now.x + ox, ny = now.y + oy;
 		int id_rat = rat;
+		
 		// hit the left fence
 		if (nx < 0) {
 			// System.err.println("RAT HITS THE LEFT FENCE!!!");
@@ -489,7 +502,8 @@ public class Piedpipers {
 			double ox2 = -(ox - moved);
 			//Random random = new Random();
 			
-			int theta = random.nextInt(360);
+			//int theta = random.nextInt(360);
+			int theta = -thetas[rat];
 			thetas[rat] = theta;
 			return updatePosition(temp, ox2, oy, id_rat);
 		}
@@ -502,7 +516,7 @@ public class Piedpipers {
 			double ox2 = -(ox - moved);
 			//Random random = new Random();
 			
-			int theta = random.nextInt(360);
+			int theta = -thetas[rat];
 			thetas[rat] = theta;
 			return updatePosition(temp, ox2, oy, id_rat);
 		}
@@ -515,7 +529,7 @@ public class Piedpipers {
 			double oy2 = -(oy - moved);
 			//Random random = new Random();
 		
-			int theta = random.nextInt(360);
+			int theta = 180-thetas[rat];
 			thetas[rat] = theta;
 			return updatePosition(temp, ox, oy2, id_rat);
 		}
@@ -526,7 +540,7 @@ public class Piedpipers {
 			double moved = (dimension - now.y);
 			double oy2 = -(oy - moved);
 			//Random random = new Random();
-			int theta = random.nextInt(360);
+			int theta = 180-thetas[rat];
 			thetas[rat] = theta;
 			return updatePosition(temp, ox, oy2, id_rat);
 		}
@@ -542,7 +556,7 @@ public class Piedpipers {
 			double moved = (dimension/2 - now.x);
 			double ox2 = -(ox - moved);
 			//Random random = new Random();
-			int theta = random.nextInt(360);
+			int theta = -thetas[rat];
 			thetas[rat] = theta;
 			return updatePosition(temp, ox2, oy, id_rat);
 		}
@@ -644,7 +658,8 @@ public class Piedpipers {
 			Point[] pipercopy = copyPointArray(pipers);
 
 			try {
-				next[d] = players[d].move(pipercopy, rats);
+				next[d] = players[d].move(pipercopy, rats, pipermusic, thetas);
+				pipermusic[d] = players[d].music;
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.err.println("[ERROR] Player throws exception!!!!");
@@ -703,6 +718,7 @@ public class Piedpipers {
 		// initialize rats
 		rats = new Point[nrats];
 		thetas = new int[nrats];
+		pipermusic = new boolean[npipers];
 		for (int s = 0; s < nrats; ++s)
 			rats[s] = randomPosition(1);
 
@@ -716,6 +732,8 @@ public class Piedpipers {
 
 		for (int d = 0; d < npipers; ++d) {
 			players[d].init();
+			pipermusic[d] = false;
+			
 		}
 		for (int i=0; i< nrats; i++) {
 			//Random random = new Random();
@@ -783,6 +801,7 @@ public class Piedpipers {
 	Point[] pipers;
 	// sheep positions
 	Point[] rats;
+	boolean[] pipermusic;
 
 	// game config
 	int npipers;
