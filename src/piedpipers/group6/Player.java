@@ -15,7 +15,7 @@ public class Player extends piedpipers.sim.Player {
 	
 	static int predictionLookAhead = 500;
 	
-	static double piperDropDistance = 4.0;
+	static double piperDropDistance = 6.0;
 	
 	static Point dropOffPoint = new Point();
 	
@@ -124,15 +124,14 @@ public class Player extends piedpipers.sim.Player {
 			else {
 				// See if there's a playing piper nearby and if you are carrying rats
 				int closestPiperId = findClosestPiper(id, pipers);
-				if( closestPiperId != -1 
-						&& pipermusic[closestPiperId]
-						&& isInfluencingRats(pipers[id], rats) 
-						&& distance(current, pipers[closestPiperId]) > piperDropDistance) {
+				if( closestPiperId != -1
+					&& closestPiperId < id
+					&& pipermusic[closestPiperId]
+					&& isInfluencingRats(pipers[id], rats) 
+					&& distance(current, pipers[closestPiperId]) < piperDropDistance) {
 					// if the piper close by is senior: drop the rats & run off
-					if( closestPiperId < id ) {
-						this.music = false;
-						hitTheWall = false;
-					}	
+					this.music = false;
+					hitTheWall = false;
 				} else {
 					// Find closest rat. Move in that direction.
 					Point closestRat = findClosestRatNotInInfluence(pipers[id], rats, pipers);
