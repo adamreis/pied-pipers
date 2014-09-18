@@ -14,7 +14,7 @@ public class Player extends piedpipers.sim.Player {
 	static double mpspeed = 0.09;
 	static double WALK_SPEED = 0.1; // 1m/s, walking speed for rats
 	
-	static int predictionLookAhead = 800;
+	static int predictionLookAhead = 2000;
 	
 	static double piperDropDistance = 6.0;
 	
