@@ -277,8 +277,7 @@ public class Player extends piedpipers.sim.Player {
 			}
 		}
 		
-		switch (X) {
-		case "far":
+		if (X.equals("far")) {
 			// find the rat that's farthest away at time 0
 			// calculate distance to that rat
 			double farthestRatDistance = 0;
@@ -300,46 +299,46 @@ public class Player extends piedpipers.sim.Player {
 				}
 			}
 			return rats[farthestRatIndex];
-
-		default:
+		}
+		else {
 		
-		// Sequentially check one future tick at a time; as soon as a rat is
-		// inside the future tick circle, choose that rat.
-		for (int i = 0; i < predictionLookAhead; i++) {
-			for (int j = 0; j < rats.length; j++) {
-				if (ratsFound[j] == true) {
+			// Sequentially check one future tick at a time; as soon as a rat is
+			// inside the future tick circle, choose that rat.
+			for (int i = 0; i < predictionLookAhead; i++) {
+				for (int j = 0; j < rats.length; j++) {
+					if (ratsFound[j] == true) {
+						continue;
+					}
+					// Find where the j'th rat will be at future time i
+					Point predictedPoint = predictedRatPositions.get(j).get(i);
+					double ratDist = distance(current, predictedPoint);
+					if ((ratDist > 10) && (ratDist < (10 + i * mpspeed))) {
+	//					System.out.println("returned at i = " + i);
+	//					System.out.println("ratDist = " + ratDist);
+						return predictedPoint;
+					}
+				}
+			}
+	//		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
+	//		System.out.println("ratsFound: " + Arrays.toString(ratsFound));
+			
+			// If we don't have enough heap space to store enough future positions
+			// so that we intersect with a rat, just find the closest rat at the current time and
+			// head there.
+			double closestSoFar = Integer.MAX_VALUE;
+			Point closestRat = new Point();
+			// Assumed true until we find a rat not in influence
+			for(int i = 0; i < rats.length; i++) {
+				if (getSide(rats[i]) == 0 || ratsFound[i] == true) {
 					continue;
 				}
-				// Find where the j'th rat will be at future time i
-				Point predictedPoint = predictedRatPositions.get(j).get(i);
-				double ratDist = distance(current, predictedPoint);
-				if ((ratDist > 10) && (ratDist < (10 + i * mpspeed))) {
-//					System.out.println("returned at i = " + i);
-//					System.out.println("ratDist = " + ratDist);
-					return predictedPoint;
+				double ratDist = distance(current, rats[i]);
+				if (ratDist < closestSoFar && ratDist > 10) {
+					closestSoFar = ratDist;
+					closestRat = rats[i];
 				}
 			}
-		}
-//		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
-//		System.out.println("ratsFound: " + Arrays.toString(ratsFound));
-		
-		// If we don't have enough heap space to store enough future positions
-		// so that we intersect with a rat, just find the closest rat at the current time and
-		// head there.
-		double closestSoFar = Integer.MAX_VALUE;
-		Point closestRat = new Point();
-		// Assumed true until we find a rat not in influence
-		for(int i = 0; i < rats.length; i++) {
-			if (getSide(rats[i]) == 0 || ratsFound[i] == true) {
-				continue;
-			}
-			double ratDist = distance(current, rats[i]);
-			if (ratDist < closestSoFar && ratDist > 10) {
-				closestSoFar = ratDist;
-				closestRat = rats[i];
-			}
-		}
-		return closestRat;
+			return closestRat;
 		}
 	}
 	
