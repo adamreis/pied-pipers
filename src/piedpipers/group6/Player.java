@@ -276,8 +276,8 @@ public class Player extends piedpipers.sim.Player {
 				}
 			}
 		}
+		
 		if (X.equals("far")) {
-			
 			// find the rat that's farthest away at time 0
 			// calculate distance to that rat
 			double farthestRatDistance = 0;
@@ -301,7 +301,7 @@ public class Player extends piedpipers.sim.Player {
 			return rats[farthestRatIndex];
 		}
 		else {
-			
+		
 			// Sequentially check one future tick at a time; as soon as a rat is
 			// inside the future tick circle, choose that rat.
 			for (int i = 0; i < predictionLookAhead; i++) {
@@ -339,7 +339,7 @@ public class Player extends piedpipers.sim.Player {
 				}
 			}
 			return closestRat;
-			}
+		}
 	}
 	
 	ArrayList<Point> getRatsInSection(int[] sectionCoords, Point[] rats) {
