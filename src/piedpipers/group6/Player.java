@@ -129,17 +129,27 @@ public class Player extends piedpipers.sim.Player {
 				oy = (piperStartPoint.y - current.y) / dist * pspeed;	
 			}
 			// If you've just handed off rats to another piper, you want to go for the rat that's farthest away.
-			else if (droppedRats) {
+			else if (droppedRats && !finishedRound) {
 				this.music = false;
-				if (targetRat == null) {
-					targetRat = findFarthestRat(current, rats, pipers);
+				if (finishedRound) {
+					// Just go back to the gate
+					double dist = distance(current, gate);
+					assert dist > 0;
+					ox = (gate.x - current.x) / dist * mpspeed;
+					oy = (gate.y - current.y) / dist * mpspeed;
 				}
-				double dist = distance(current, targetRat);
-				ox = (targetRat.x - current.x) / dist * pspeed;
-				oy = (targetRat.y - current.y) / dist * pspeed;	
-				if (dist < 10) {
-					this.music = true;
-					droppedRats = false;
+				else {
+					// Go to the location of the farthest rat
+					if (targetRat == null) {
+					targetRat = findFarthestRat(current, rats, pipers);
+					}
+					double dist = distance(current, targetRat);
+					ox = (targetRat.x - current.x) / dist * pspeed;
+					oy = (targetRat.y - current.y) / dist * pspeed;	
+					if (dist < 10) {
+						this.music = true;
+						droppedRats = false;
+					}
 				}
 			}
 			else {
@@ -167,17 +177,6 @@ public class Player extends piedpipers.sim.Player {
 //						System.out.println("move toward the left side");	
 					}
 					else {
-						// If the rat you're going for is closer to another piper, go for the rat that's
-						// farthest away instead.
-						for (Point piper : pipers) {
-							if (piper == current) {
-								continue;
-							}
-							if (distance(piper, closestRat) < distance(closestRat, current)) {
-								closestRat = findFarthestRat(current, rats, pipers);
-								break;
-							}
-						}
 						// All Rats have not been found; continue to catch em.
 						double dist = distance(current, closestRat);
 						
