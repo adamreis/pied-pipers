@@ -167,6 +167,17 @@ public class Player extends piedpipers.sim.Player {
 //						System.out.println("move toward the left side");	
 					}
 					else {
+						// If the rat you're going for is closer to another piper, go for the rat that's
+						// farthest away instead.
+						for (Point piper : pipers) {
+							if (piper == current) {
+								continue;
+							}
+							if (distance(piper, closestRat) < distance(closestRat, current)) {
+								closestRat = findFarthestRat(current, rats, pipers);
+								break;
+							}
+						}
 						// All Rats have not been found; continue to catch em.
 						double dist = distance(current, closestRat);
 						
