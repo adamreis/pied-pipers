@@ -20,7 +20,7 @@ public class Player extends piedpipers.sim.Player {
 	
 	static Point dropOffPoint = new Point();
 	
-	// Map of each rat's dedicated section of the board
+	// Maps each piper's id to its dedicated section of the board
 	HashMap<Integer, int[]> boundaries= new HashMap<Integer, int[]>();
 	
 	static ArrayList<ArrayList<Point>> predictedRatPositions;
@@ -300,7 +300,7 @@ public class Player extends piedpipers.sim.Player {
 			return rats[farthestRatIndex];
 		}
 		else {
-		
+			// X == near
 			// Sequentially check one future tick at a time; as soon as a rat is
 			// inside the future tick circle, choose that rat.
 			for (int i = 0; i < predictionLookAhead; i++) {
@@ -312,9 +312,11 @@ public class Player extends piedpipers.sim.Player {
 					Point predictedPoint = predictedRatPositions.get(j).get(i);
 					double ratDist = distance(current, predictedPoint);
 					if ((ratDist > 10) && (ratDist < (10 + i * mpspeed))) {
-	//					System.out.println("returned at i = " + i);
-	//					System.out.println("ratDist = " + ratDist);
-						return predictedPoint;
+						if (isInSection(predictedPoint, boundaries.get(id))) {
+							//System.out.println("returned at i = " + i);
+							//System.out.println("ratDist = " + ratDist);
+							return predictedPoint;
+						}	
 					}
 				}
 			}
@@ -333,8 +335,10 @@ public class Player extends piedpipers.sim.Player {
 				}
 				double ratDist = distance(current, rats[i]);
 				if (ratDist < closestSoFar && ratDist > 10) {
-					closestSoFar = ratDist;
-					closestRat = rats[i];
+					if (isInSection(rats[i], boundaries.get(id))) {
+						closestSoFar = ratDist;
+						closestRat = rats[i];
+					}	
 				}
 			}
 			return closestRat;
@@ -343,17 +347,24 @@ public class Player extends piedpipers.sim.Player {
 	
 	ArrayList<Point> getRatsInSection(int[] sectionCoords, Point[] rats) {
 		ArrayList<Point> ratsInSection = new ArrayList<Point>();
-		int topCoord = sectionCoords[0];
-		int bottomCoord = sectionCoords[1];
 		for (Point rat : rats) {
 			if (getSide(rat) == 0) {
 				continue;
 			}
-			if (rat.y > topCoord && rat.y < bottomCoord) {
+			if (isInSection(rat, sectionCoords)) {
 				ratsInSection.add(rat);
 			}
 		}
 		return ratsInSection;
+	}
+	
+	boolean isInSection(Point current, int[] section) {
+		int topCoord = section[0];
+		int bottomCoord = section[1];
+		if (current.y > topCoord && current.y < bottomCoord) {
+			return true;
+		}
+		return false;
 	}
 	
 	boolean isInfluencingRats(Point current, Point[] rats) {
