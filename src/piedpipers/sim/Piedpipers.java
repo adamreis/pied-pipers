@@ -600,7 +600,7 @@ public class Piedpipers {
 		if (y3 >= OPEN_LEFT && y3 <= OPEN_RIGHT) 
 			return false;
 		else {
-			System.out.printf("hit the medium fence");
+//			System.out.printf("hit the medium fence");
 			return true;
 		}
 	}
@@ -667,9 +667,9 @@ public class Piedpipers {
 			}
 
 			if (verbose) {
-				System.err.format(
-						"Piper %d moves from (%.2f,%.2f) to (%.2f,%.2f)\n",
-						d + 1, pipers[d].x, pipers[d].y, next[d].x, next[d].y);
+//				System.err.format(
+//						"Piper %d moves from (%.2f,%.2f) to (%.2f,%.2f)\n",
+//						d + 1, pipers[d].x, pipers[d].y, next[d].x, next[d].y);
 			}
 
 			// validate player move
