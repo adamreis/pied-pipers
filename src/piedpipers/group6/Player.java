@@ -10,8 +10,8 @@ import piedpipers.sim.Point;
 public class Player extends piedpipers.sim.Player {
 	static int npipers;
 	
-	static double pspeed = 0.49;
-	static double mpspeed = 0.09;
+	static double pspeed = 0.4999999999;
+	static double mpspeed = 0.099999999;
 	static double WALK_SPEED = 0.1; // 1m/s, walking speed for rats
 	
 	static int predictionLookAhead = 2000;
