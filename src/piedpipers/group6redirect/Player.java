@@ -1,6 +1,7 @@
 package piedpipers.group6redirect;
 
 import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -17,7 +18,7 @@ public class Player extends piedpipers.sim.Player {
 	
 	static int predictionLookAhead = 2000; 
 	
-	static Point dropOffPoint = new Point();
+	static Point dropOffPoint;
 	
 	// Map of each rat's dedicated section of the board
 	HashMap<Integer, int[]> boundaries= new HashMap<Integer, int[]>();
@@ -39,19 +40,24 @@ public class Player extends piedpipers.sim.Player {
 	
 	static String state;
 	static int ratOfInterest;
+	static int magnetPiperId;
+	boolean[] ratsCaptured;
+	boolean[] ratsInRightDirection;
 	
 	Point gate;
-	Line2D goalLine;
+	Point magnetPoint;
+	Rectangle2D goalBox;
 	
 	public void init() {
-		dropOffPoint = new Point(0, dimension/2);
+		dropOffPoint = new Point(dimension/2 - 5, dimension/2);
 		
 		OPEN_LEFT = dimension/2-1;
 		OPEN_RIGHT = dimension/2+1;
 		numMoves = 0;
 		
 		gate = new Point(dimension/2, dimension/2);
-		goalLine = new Line2D.Double(gate.x, gate.y - 1, gate.x, gate.y + 1);
+		goalBox = new Rectangle2D.Double(dimension/2, dimension/2 - 12, 25, 25);
+		magnetPoint = new Point(dimension/2 + 10, dimension/2);
 		state = "default";
 		
 		predictedRatPositions = new ArrayList<ArrayList<Point>>();
@@ -74,6 +80,9 @@ public class Player extends piedpipers.sim.Player {
 			for (int i = 0; i < rats.length; i++) {
 				predictedRatPositions.add(new ArrayList<Point>(predictionLookAhead));
 			}
+			ratsCaptured = new boolean[rats.length];
+			ratsInRightDirection = new boolean[rats.length];
+			magnetPiperId = pipers.length/2;
 			initi = true;
 		}
 		numMoves++;
@@ -82,11 +91,11 @@ public class Player extends piedpipers.sim.Player {
 		lastRatThetas = currentRatThetas;
 		currentRatThetas = thetas.clone();
 		
-		// If the piper is on the wrong side of the fence,
-		// it's either the end of the round or the beginning.
 		Point current = pipers[id];
 		double ox = 0; // delta x/y
 		double oy = 0;
+		
+		
 		switch (getSide(current)) {
 		case 0:
 			if (finishedRound) {
@@ -99,25 +108,64 @@ public class Player extends piedpipers.sim.Player {
 					oy = (dropOffPoint.y - current.y) / dist * mpspeed;
 //					System.out.println("move toward dropoff point");	
 				}
-				else {
-					// Stop playing.
-					this.music = false;	
-				}
 			}
 			else {
 				// You haven't begun collecting rats yet.
 				this.music = false;
 				double dist = distance(current, gate);
-				assert dist > 0;
 				ox = (gate.x - current.x) / dist * pspeed;
 				oy = (gate.y - current.y) / dist * pspeed;
 //				System.out.println("move toward the right side");
 			}
-		break;
+			break;
 		
 		default:
 			// You're on the right side.
-
+			updateRatPositions(current, rats, pipers);
+			
+			if (id == magnetPiperId) {
+				// I'm the magnet rat!
+				boolean allRatsCaptured = true;
+				for (Point r : rats) {
+					if (distance(current, r) > 10 && getSide(r) == 1) {
+						allRatsCaptured = false;
+						break;
+					}
+				}
+				if (allRatsCaptured) {
+					// move to a point just inside of the gate
+					finishedRound = true;
+					this.music = true;
+					double dist = distance(current, gate);
+					ox = (gate.x - current.x) / dist * mpspeed;
+					oy = (gate.y - current.y) / dist * mpspeed;
+				} else {
+					this.music = true;
+//					// move toward magnetPoint if needbe
+//					double dist = distance(current, magnetPoint);
+//					if (dist > 0.5) {
+//						this.music = false;
+//						ox = (magnetPoint.x - current.x) / dist * pspeed;
+//						oy = (magnetPoint.y - current.y) / dist * pspeed;
+//					} else {
+//						this.music = true;
+//						ox = oy = 0;
+//					}
+//					 find next rat that'll be in your box
+					Point next = nextRatInGoalBox(current, rats);
+					if (next == null) {
+						// move to center of goal box
+						next = new Point(goalBox.getCenterX(), goalBox.getCenterY());
+					}
+					double dist = distance(current, next);
+					ox = (next.x - current.x) / dist * mpspeed;
+					oy = (next.y - current.y) / dist * mpspeed;
+				}
+				current.x += ox;
+				current.y += oy;
+				return current;
+			}
+			
 			// Set boundaries
 			if (boundaries.isEmpty()) {
 				int i = 0;
@@ -131,15 +179,15 @@ public class Player extends piedpipers.sim.Player {
 				}
 			}
 			// Send pipers to the farthest edge of in their respective section until they hit the wall
-			if (!hitTheWall) {
-				hitTheWall = closeToWall(current);
-				this.music = false;
-				Point piperStartPoint = getPiperStartPoint(id);
-				double dist = distance(current, piperStartPoint);
-				ox = (piperStartPoint.x - current.x) / dist * pspeed;
-				oy = (piperStartPoint.y - current.y) / dist * pspeed;	
-			}
-			else {
+//			if (!hitTheWall) {
+//				hitTheWall = closeToWall(current);
+//				this.music = false;
+//				Point piperStartPoint = getPiperStartPoint(id);
+//				double dist = distance(current, piperStartPoint);
+//				ox = (piperStartPoint.x - current.x) / dist * pspeed;
+//				oy = (piperStartPoint.y - current.y) / dist * pspeed;	
+//			}
+//			else {
 				if (state.equals("redirecting")) {
 					ox = 0;
 					oy = 0;
@@ -147,8 +195,9 @@ public class Player extends piedpipers.sim.Player {
 						this.music = false;
 					} else {
 						// let's see if this rat is going in the right direction
-						if (anyRatNearMeGoingTheRightDirection(current, rats)) {
+						if (anyRatNearMeGoingTheRightDirectionOrNoneAtAll(current, rats)) {
 							state = "default";
+//							System.out.println("changed state to 'default'");
 						} else {
 							this.music = true;
 						}
@@ -159,36 +208,37 @@ public class Player extends piedpipers.sim.Player {
 					// Find closest rat that's not heading in the direction we want it to be. Move in that direction.
 					Point closestRat = findClosestRatGoingInWrongDirection(pipers[id], rats, pipers);
 					if (closestRat == null) {
-						// All rats have been found. Move back toward gate.
-						finishedRound = true;
+//						System.out.println("clossetRat == null");
+						// All rats have been found. Just chill out for now.
+//						finishedRound = true;
 						this.music = false;
-						double dist = distance(current, gate);
-						assert dist > 0;
-						ox = (gate.x - current.x) / dist * mpspeed;
-						oy = (gate.y - current.y) / dist * mpspeed;
-	//					System.out.println("move toward the left side");	
+						ox = 0;
+						oy = 0;	
 					}
-					else if (distance(closestRat, current) <= 10){
+					else if (distance(closestRat, current) <= 9.8){
 						ox = 0;
 						oy = 0;
 						this.music = true;
 						state = "redirecting";
+//						System.out.println("changed state to 'redirecting'");
 					} else {
+						System.out.println("I am rat " + id + " and closestRat is at (" + closestRat.x + ", " + closestRat.y + ")");
 						// All Rats have not been found; continue to catch em.
 						double dist = distance(current, closestRat);
 						ox = (closestRat.x - current.x) / dist * pspeed;
 						oy = (closestRat.y - current.y) / dist * pspeed;
 						this.music = false;
-	//					System.out.println("moved toward closest rat at " +
-	//							closestRat.x + ", " + closestRat.y);
+//						System.out.println("moved toward closest rat at " +
+//								closestRat.x + ", " + closestRat.y);
 					}
 				}
 			}
-		}
+//		}
 		current.x += ox;
 		current.y += oy;
 		return current;
 	}
+	
 	
 	Point getPiperStartPoint(int id) {
 		int[] boundary = boundaries.get(id);
@@ -197,13 +247,13 @@ public class Player extends piedpipers.sim.Player {
 		return new Point(startX, startY);
 	}
 	
-	Point findClosestRatGoingInWrongDirection(Point current, Point[] rats, Point[] pipers) {
+	void updateRatPositions(Point current, Point[] rats, Point[] pipers){
 		// First, check if all rats have been captured
-		boolean[] ratsFound = new boolean[rats.length];
-		boolean allRatsFound = true;
+
 		for (int i = 0; i < rats.length; i++) {
 			boolean thisRatFound = false;
-			if (getSide(rats[i]) == 0) {
+			boolean thisRatInRightDirection = false;
+			if (getSide(rats[i]) == 0 || distance(rats[i], pipers[magnetPiperId]) <= 10) {
 				thisRatFound = true;
 			} else {
 				for (Point p: pipers) {
@@ -213,18 +263,14 @@ public class Player extends piedpipers.sim.Player {
 					}
 				}
 			}
-			ratsFound[i] = thisRatFound;
-			if (!thisRatFound) {
-				allRatsFound = false;
-			}
+			ratsInRightDirection[i] = goingInRightDirection(i, rats[i]);
+			ratsCaptured[i] = thisRatFound;
 		}
-		if (allRatsFound) {
-			return null;
-		}
+
 
 		// Update predicted positions
 		for (int i = 0; i < rats.length; i++) {
-			if (ratsFound[i] == true) {
+			if (ratsCaptured[i] == true) {
 				predictedRatPositions.get(i).clear();
 				continue;
 			} else if ((lastRatThetas[i] == currentRatThetas[i]) && (predictedRatPositions.get(i).size() > 0)) {
@@ -232,7 +278,8 @@ public class Player extends piedpipers.sim.Player {
 				Point lastPos = predictedRatPositions.get(i).get(predictionLookAhead - 1);
 				predictedRatPositions.get(i).remove(0);
 				predictedRatPositions.get(i).add(getNewPosition(lastPos, ratThetas[i], i));
-			} else {
+			} 
+			else {
 			
 				predictedRatPositions.get(i).clear();
 				Point oldPosition = rats[i];
@@ -244,35 +291,54 @@ public class Player extends piedpipers.sim.Player {
 				}
 			}
 		}
-		
-		
+	}
+	
+	Point nextRatInGoalBox(Point current, Point[] rats) {
+		Point predictedPoint;
 		for (int i = 0; i < predictionLookAhead; i++) {
 			for (int j = 0; j < rats.length; j++) {
-				if (ratsFound[j] == true) {
+				if (ratsCaptured[j]) {
+					continue;
+				}
+				predictedPoint = predictedRatPositions.get(j).get(i);
+				
+				if (goalBox.contains(predictedPoint.x, predictedPoint.y) && distance(current, predictedPoint) > 10) {
+					return predictedPoint;
+				}
+			}
+		}
+		return null;
+	}
+	
+	Point findClosestRatGoingInWrongDirection(Point current, Point[] rats, Point[] pipers) {
+		for (int i = 0; i < predictionLookAhead; i++) {
+			for (int j = 0; j < rats.length; j++) {
+				if (ratsCaptured[j] || ratsInRightDirection[j]) {
 					continue;
 				}
 				Point predictedPoint = predictedRatPositions.get(j).get(i);
-				double ratDist = distance(current, predictedPoint);
+				double ratDist = distance(current, predictedPoint);		
 				if (ratDist <= 10) {
 					// check to see if this rat, or any other rat near me, is going in the right direction
-					if (anyRatNearMeGoingTheRightDirection(current, rats)) {
+					if (anyRatNearMeGoingTheRightDirectionOrNoneAtAll(current, rats)) {
 						continue;
 					} else {
 						ratOfInterest = j;
 						return predictedPoint;
 					}
-				} else if (ratDist < (10 + i * mpspeed))  {
+				} else if (ratDist < (10 + i * pspeed))  {
+//					System.out.println("returning future point " + i + " for rat #" + j);
 					return predictedPoint;
 				}
 			}
 		}
-//		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
-//		System.out.println("ratsFound: " + Arrays.toString(ratsFound));
+		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
+//		System.out.println("ratsFound: " + Arrays.toString(ratsCaptured));
 		double closestSoFar = Integer.MAX_VALUE;
 		Point closestRat = new Point();
 		// Assumed true until we find a rat not in influence
 		for(int i = 0; i < rats.length; i++) {
-			if (getSide(rats[i]) == 0 || ratsFound[i] == true) {
+			if (ratsCaptured[i] == true || ratsInRightDirection[i]) {
 				continue;
 			}
 			double ratDist = distance(current, rats[i]);
@@ -281,17 +347,24 @@ public class Player extends piedpipers.sim.Player {
 				closestRat = rats[i];
 			}
 		}
-
-		return closestRat;
+		if (closestSoFar < Integer.MAX_VALUE) {
+			return closestRat;
+		} else {
+			return null;
+		}
 	}
 	
-	boolean anyRatNearMeGoingTheRightDirection(Point current, Point[] rats) {
+	boolean anyRatNearMeGoingTheRightDirectionOrNoneAtAll(Point current, Point[] rats) {
+		boolean noRatsNearby = true;
 		for (int i = 0; i < rats.length; i++) {
-			if (distance(current, rats[i]) <= 10 && goingInRightDirection(i, rats[i])) {
-				return true;
+			if (distance(current, rats[i]) <= 10 ) {
+				noRatsNearby = false;
+				if(ratsInRightDirection[i]) {
+					return true;
+				}
 			}
 		}
-		return false;
+		return noRatsNearby;
 	}
 	
 	boolean goingInRightDirection(int ratIndex, Point ratPosition) {
@@ -300,7 +373,7 @@ public class Player extends piedpipers.sim.Player {
 		double oy = dimension * 2 * Math.cos(ratAngle * Math.PI / 180);
 		
 		Line2D newLine = new Line2D.Double(ratPosition.x, ratPosition.y, ratPosition.x + ox, ratPosition.y + oy);
-		return newLine.intersectsLine(goalLine);		
+		return newLine.intersects(goalBox);		
 	}
 	
 	ArrayList<Point> getRatsInSection(int[] sectionCoords, Point[] rats) {
