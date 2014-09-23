@@ -16,7 +16,11 @@ public class Player extends piedpipers.sim.Player {
 	
 	static int predictionLookAhead = 2000;
 	
-	static double piperDropDistance = 6.0;
+	// Used to wait for 5 ticks before moving into the left side with all the rats.
+	// Helps make sure there are no stragglers.
+	static int catchUpCounter = 5;
+	
+	static double piperDropDistance = 4.0;
 	
 	static Point dropOffPoint = new Point();
 	
@@ -64,6 +68,40 @@ public class Player extends piedpipers.sim.Player {
 			}
 			initi = true;
 		}
+		
+		// LEVEL 1 OF DECISION TREE
+		if (pipers.length == 1) {
+			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
+		}
+		
+		// LEVEL 2
+		// TODO: 100 is a magic number
+		if ((dimension * dimension) / rats.length < 100) {
+			// LEVEL 3
+			// TODO: 'high enough' is a magic number
+			// if piper to board density is high enough, use predictive greedy with partitioning.
+			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
+			// else use redirection.
+		}
+		else {
+			// LEVEL 3
+			// TODO: 40 is a magic number - it's how we could line up horizontally
+			// and have approximately half the board size covered by pipers.
+			System.out.println(dimension / pipers.length);
+			if (dimension / pipers.length < 40) {
+				return commenceSweep(pipers, rats, pipermusic, thetas);
+			}
+			else {
+				return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
+			}
+		}
+	}
+	
+	Point commenceSweep(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
+		return new Point(0, 0);
+	}
+		
+	Point commencePredictiveGreedySearch(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
 		npipers = pipers.length;
 		ratThetas = thetas.clone();
 		lastRatThetas = currentRatThetas;
@@ -79,17 +117,21 @@ public class Player extends piedpipers.sim.Player {
 		case 0:
 			if (finishedRound) {
 				// The round is finished
-				if (distance(current, dropOffPoint) > 1) {
+				if (distance(current, dropOffPoint) != 0) {
 					this.music = true;
-					Point dropOffPoint = new Point(dimension/4, dimension/2);
+					dropOffPoint = new Point(dimension/2 - 5, dimension/2);
 					double dist = distance(current, dropOffPoint);
 					ox = (dropOffPoint.x - current.x) / dist * mpspeed;
 					oy = (dropOffPoint.y - current.y) / dist * mpspeed;
 //					System.out.println("move toward dropoff point");	
 				}
 				else {
-					// Stop playing.
-					this.music = false;	
+					if (catchUpCounter > 0) {
+						ox = 0;
+						oy = 0;
+						catchUpCounter --;
+					}
+					// else you've reached the dropoff point. Don't stop playing.
 				}
 			}
 			else {
@@ -129,7 +171,7 @@ public class Player extends piedpipers.sim.Player {
 				oy = (piperStartPoint.y - current.y) / dist * pspeed;	
 			}
 			// If you've just handed off rats to another piper, you want to go for the rat that's farthest away.
-			else if (droppedRats && !finishedRound) {
+			else if (droppedRats) {
 				this.music = false;
 				if (finishedRound) {
 					// Just go back to the gate
@@ -166,7 +208,7 @@ public class Player extends piedpipers.sim.Player {
 				} else {
 					// Find closest rat. Move in that direction.
 					Point closestRat = findClosestRat(current, rats, pipers);
-					if (closestRat == null) {
+					if (!isValidTarget(closestRat)) {
 						// All rats have been found. Move back toward gate.
 						finishedRound = true;
 						this.music = true;
@@ -198,6 +240,13 @@ public class Player extends piedpipers.sim.Player {
 		current.x += ox;
 		current.y += oy;
 		return current;
+	}
+	
+	boolean isValidTarget(Point rat) {
+		if (rat == null || getSide(rat) == 0) {
+			return false;
+		}
+		return true;
 	}
 	
 	Point findFarthestRat(Point current, Point[] rats, Point[] pipers) {
