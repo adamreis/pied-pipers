@@ -20,6 +20,9 @@ public class Player extends piedpipers.sim.Player {
 	// Helps make sure there are no stragglers.
 	static int catchUpCounter = 5;
 	
+	// Used to make sure all pipers get across fence initially in sweep.
+	static boolean hitTempPoint = false;
+	
 	static double piperDropDistance = 4.0;
 	
 	static Point dropOffPoint = new Point();
@@ -46,7 +49,6 @@ public class Player extends piedpipers.sim.Player {
 	
 	public void init() {
 		dropOffPoint = new Point(0, dimension/2);
-		
 		OPEN_LEFT = dimension/2-1;
 		OPEN_RIGHT = dimension/2+1;
 		
@@ -66,6 +68,7 @@ public class Player extends piedpipers.sim.Player {
 			for (int i = 0; i < rats.length; i++) {
 				predictedRatPositions.add(new ArrayList<Point>(predictionLookAhead));
 			}
+			npipers = pipers.length;
 			initi = true;
 		}
 		
@@ -98,11 +101,77 @@ public class Player extends piedpipers.sim.Player {
 	}
 	
 	Point commenceSweep(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
-		return new Point(0, 0);
+		String mode = "sweep";
+		Point current = pipers[id];
+		Point gate = new Point(dimension/2, dimension/2);
+		double ox = 0; // delta x/y
+		double oy = 0;
+		switch (getSide(current)) {
+		case 0:
+			if (finishedRound) {
+				// The round is finished. In sweep, this will rarely happen because
+				// its intention is to just reduce the density of rats. However, in
+				// the case where dimension / pipers <=20, it can grab all the rats
+				// in one sweep and retreat to the dropoff point without going into any
+				// other stage.
+				if (distance(current, dropOffPoint) != 0) {
+					this.music = true;
+					dropOffPoint = new Point(dimension/2 - 5, dimension/2);
+					double dist = distance(current, dropOffPoint);
+					ox = (dropOffPoint.x - current.x) / dist * mpspeed;
+					oy = (dropOffPoint.y - current.y) / dist * mpspeed;
+//					System.out.println("move toward dropoff point");	
+				}
+				else {
+					// Wait until the straggler rats catch up.
+					if (catchUpCounter > 0) {
+						ox = 0;
+						oy = 0;
+						catchUpCounter --;
+					}
+					// Else you've reached the dropoff point. Don't stop playing.
+				}
+			}
+			else {
+				// You haven't begun collecting rats yet.
+				this.music = false;
+				double dist = distance(current, gate);
+				assert dist > 0;
+				ox = (gate.x - current.x) / dist * pspeed;
+				oy = (gate.y - current.y) / dist * pspeed;
+//				System.out.println("move toward the right side");
+			}
+		break;
+		default:
+			// You're on the right side.
+			if (boundaries.isEmpty()) {
+				setBoundaries(pipers, mode);
+			}
+			if (!hitTheWall){
+					hitTheWall = closeToWall(current);
+					this.music = false;
+					Point piperStartPoint = null;
+					if (hitTempPoint) {
+						piperStartPoint = getPiperStartPoint(id, mode);
+					}
+					else {
+						piperStartPoint = new Point(current.x + 10, current.y);
+						if (current.x >= dimension / 2 + 10) {
+							hitTempPoint = true;
+						}
+					}
+					double dist = distance(current, piperStartPoint);
+					ox = (piperStartPoint.x - current.x) / dist * pspeed;
+					oy = (piperStartPoint.y - current.y) / dist * pspeed;
+			}
+		}
+		current.x += ox;
+		current.y += oy;
+		return current;
 	}
 		
 	Point commencePredictiveGreedySearch(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
-		npipers = pipers.length;
+		String mode = "gp";
 		ratThetas = thetas.clone();
 		lastRatThetas = currentRatThetas;
 		currentRatThetas = thetas.clone();
@@ -150,25 +219,17 @@ public class Player extends piedpipers.sim.Player {
 
 			// Set boundaries
 			if (boundaries.isEmpty()) {
-				int i = 0;
-				for (Point piper : pipers) {
-					int topYVal = i * dimension / npipers;
-					int bottomYVal = topYVal + (dimension/npipers) - 1;
-					int[] section = {topYVal, bottomYVal};
-					// Make the ID an Integer so it can be used as a key in a HashMap
-					boundaries.put(new Integer(i), section);
-					i++;
-				}
+				setBoundaries(pipers, mode); // greedy partitioned
 			}
 			// You've just entered the right hand side.
 			// Send pipers to the farthest edge of in their respective section until they hit the wall
 			if (!hitTheWall) {
-				hitTheWall = closeToWall(current);
-				this.music = false;
-				Point piperStartPoint = getPiperStartPoint(id);
-				double dist = distance(current, piperStartPoint);
-				ox = (piperStartPoint.x - current.x) / dist * pspeed;
-				oy = (piperStartPoint.y - current.y) / dist * pspeed;	
+					hitTheWall = closeToWall(current);
+					this.music = false;
+					Point piperStartPoint = getPiperStartPoint(id, mode); // gp = greedy predictive
+					double dist = distance(current, piperStartPoint);
+					ox = (piperStartPoint.x - current.x) / dist * pspeed;
+					oy = (piperStartPoint.y - current.y) / dist * pspeed;
 			}
 			// If you've just handed off rats to another piper, you want to go for the rat that's farthest away.
 			else if (droppedRats) {
@@ -242,6 +303,47 @@ public class Player extends piedpipers.sim.Player {
 		return current;
 	}
 	
+	void setBoundaries(Point[] pipers, String mode) {
+		if (mode.equals("gp")) {
+			for (int i = 0; i < pipers.length; i++) {
+				int topYVal = i * dimension / npipers;
+				int bottomYVal = topYVal + (dimension/npipers) - 1;
+				int[] section = {topYVal, bottomYVal};
+				// Make the ID an Integer so it can be used as a key in a HashMap
+				boundaries.put(new Integer(i), section);
+			}
+		}
+		else if (mode.equals("sweep")) {
+			int width = dimension / 2;
+			for (int i = 0; i < pipers.length; i++) {
+				int leftXVal = width + i * width / npipers;
+				int rightXVal = leftXVal + (width / npipers) - 1;
+				int[] section = {leftXVal, rightXVal};
+				// Make the ID an Integer so it can be used as a key in a HashMap
+				boundaries.put(new Integer(i), section);
+			}
+		}
+	}
+	
+	Point getPiperStartPoint(int id, String mode) {
+		int[] boundary = boundaries.get(id);
+		if (mode.equals("gp")) {
+			int startX = dimension;
+			int startY = boundary[0] + (boundary[1] - boundary[0]) / 2;
+			return new Point(startX, startY);
+		}
+		else {
+			//if (mode.equals("sweep")) {
+			int startX = boundary[0] + (boundary[1] - boundary[0]) / 2;
+			int startY = 0;
+			return new Point(startX, startY);
+		}	
+	}
+	
+	void resetCatchUpCounter() {
+		catchUpCounter = 5;
+	}
+	
 	boolean isValidTarget(Point rat) {
 		if (rat == null || getSide(rat) == 0) {
 			return false;
@@ -257,12 +359,7 @@ public class Player extends piedpipers.sim.Player {
 		return findXestRatNotInInfluence("close", current, rats, pipers);
 	}
 	
-	Point getPiperStartPoint(int id) {
-		int[] boundary = boundaries.get(id);
-		int startX = dimension;
-		int startY = boundary[0] + (boundary[1] - boundary[0]) / 2;
-		return new Point(startX, startY);
-	}
+	
 	
 	int findClosestPiper(int currentId, Point[] pipers) {
 		double distanceConsidered = 10.0;
