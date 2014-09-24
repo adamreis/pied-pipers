@@ -124,7 +124,7 @@ public class Player extends piedpipers.sim.Player {
 			updateRatPositions(current, rats, pipers);
 			
 			if (id == magnetPiperId) {
-				// I'm the magnet rat!
+				// I'm the magnet piper!
 				boolean allRatsCaptured = true;
 				for (Point r : rats) {
 					if (distance(current, r) > 10 && getSide(r) == 1) {
@@ -189,6 +189,7 @@ public class Player extends piedpipers.sim.Player {
 //			}
 //			else {
 				if (state.equals("redirecting")) {
+					System.out.println("I am piper " + id + " and am redirecting.");
 					ox = 0;
 					oy = 0;
 					if (this.music == true) {
@@ -197,7 +198,7 @@ public class Player extends piedpipers.sim.Player {
 						// let's see if this rat is going in the right direction
 						if (anyRatNearMeGoingTheRightDirectionOrNoneAtAll(current, rats)) {
 							state = "default";
-//							System.out.println("changed state to 'default'");
+							System.out.println("changed state to 'default'");
 						} else {
 							this.music = true;
 						}
@@ -207,8 +208,9 @@ public class Player extends piedpipers.sim.Player {
 				} else {
 					// Find closest rat that's not heading in the direction we want it to be. Move in that direction.
 					Point closestRat = findClosestRatGoingInWrongDirection(pipers[id], rats, pipers);
+					
 					if (closestRat == null) {
-//						System.out.println("clossetRat == null");
+						System.out.println("closestRat == null for piper " + id );
 						// All rats have been found. Just chill out for now.
 //						finishedRound = true;
 						this.music = false;
@@ -216,20 +218,22 @@ public class Player extends piedpipers.sim.Player {
 						oy = 0;	
 					}
 					else if (distance(closestRat, current) <= 9.8){
+						System.out.println( closestRat.x +" " + closestRat.y);
+						System.out.println( current.x +" " + current.y);
 						ox = 0;
 						oy = 0;
 						this.music = true;
 						state = "redirecting";
-//						System.out.println("changed state to 'redirecting'");
+						System.out.println("changed state to 'redirecting' for piper " + id);
 					} else {
-						System.out.println("I am rat " + id + " and closestRat is at (" + closestRat.x + ", " + closestRat.y + ")");
+						System.out.println("I am piper " + id + " and closestRat is at (" + closestRat.x + ", " + closestRat.y + ")");
 						// All Rats have not been found; continue to catch em.
 						double dist = distance(current, closestRat);
 						ox = (closestRat.x - current.x) / dist * pspeed;
 						oy = (closestRat.y - current.y) / dist * pspeed;
 						this.music = false;
-//						System.out.println("moved toward closest rat at " +
-//								closestRat.x + ", " + closestRat.y);
+						System.out.println("moved toward closest rat at " +
+								closestRat.x + ", " + closestRat.y);
 					}
 				}
 			}
@@ -349,7 +353,7 @@ public class Player extends piedpipers.sim.Player {
 			double[] closestRatPos = findClosestOneRatToRedirect(currentIter, ratsIter);
 			// couldn't even get to depth using greedy...stop here
 			if(closestRatPos == null) {
-				continue;
+				break;
 			}
 			closestRat = new Point(closestRatPos[0], closestRatPos[1]);
 			if( i == 0) {
@@ -361,37 +365,58 @@ public class Player extends piedpipers.sim.Player {
 			ratsIter = getAllRatsInNTicks(ticks, rats);
 		}
 		System.out.println("# Ticks to get to " + depth + " rats: " + ticks);
+		System.out.println("Depth closest: " + firstRat.x + " , " + firstRat.y);
 		double[] intersect = new double[3];
+		int treeDepth = 0;
 		// go through all rats...phase 2
 		for(int ratIdx = 0; ratIdx < rats.length; ratIdx++ ) {
 			Point current2Iter = current;
 			Point[] rats2Iter = rats;
 			int ticks2 = 0;
 			Point firstRat2 = new Point();
-			boolean deepEnough = true;
+			boolean deepEnough = false;
+			// if first rat is already moving in right direction, ignore
+			if(goingInRightDirection(ratIdx, rats[ratIdx]) ) {
+				continue;
+			}
 			// as deep as needed / reasonable...
 			for(int depthIdx = 0; depthIdx < depth; depthIdx++) {
+				treeDepth += 1;
 				intersect = findIntersectPointTime(current2Iter, rats2Iter, ratIdx);
 				// keep calculating only if time is smaller and intersection is still possible
-				if(intersect != null && intersect[2] < ticks ) {
-					if( depthIdx == 0) {
-						firstRat2 = new Point(intersect[0], intersect[1]);
-					}
+				if(intersect != null && ticks2 < ticks ) {
 					ticks2 += (int) intersect[2];
 					current2Iter = new Point(intersect[0], intersect[1]);
 					rats2Iter = getAllRatsInNTicks(ticks2, rats);
+					if( depthIdx == 0 ) {
+						firstRat2 = new Point(intersect[0], intersect[1]);
+						if(anyRatNearMeGoingTheRightDirectionOrNoneAtAll(current2Iter, rats2Iter )) {
+							break;
+						}
+					}
 				} else {
-					deepEnough = false;
 					break;
+				}
+				if(depthIdx -1 == depth) {
+					deepEnough = true;
 				}
 			}
 			// if actually got to the necessary # of rats & on better time
 			if(deepEnough && ticks2 < ticks) {
 				ticks = ticks2;
 				firstRat = firstRat2;
+				System.out.println("FOUND SOMETHING BETTER TO GO TO");
+				System.out.println("Depth closest: " + firstRat.x + " , " + firstRat.y);
 			}
 		}
+		System.out.println("DEPTH: " + treeDepth);
 		return firstRat;
+		// check if we are actually currently influencing that first rat...
+//		if(anyRatNearMeGoingTheRightDirectionOrNoneAtAll(current, rats)) {
+//			return firstRat; //new Point();
+//		} else {
+//			return new Point();//firstRat;
+//		}
 	}
 	
 	double[] findClosestOneRatToRedirect(Point current, Point[] rats) {
@@ -443,8 +468,8 @@ public class Player extends piedpipers.sim.Player {
 //				}
 //			}
 //		}
-		Point nextRat = findNextRatToRedirect(current, rats, 5); //Point current, Point[] rats, int depth
-		System.out.println("FOUND NEXT RAT");
+		// TODO change this one around
+		Point nextRat = findNextRatToRedirect(current, rats, 10); //Point current, Point[] rats, int depth
 		if( nextRat.x != 0 || nextRat.y != 0 ) {
 			return nextRat;
 		}
