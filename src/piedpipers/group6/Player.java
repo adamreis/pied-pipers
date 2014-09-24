@@ -29,6 +29,8 @@ public class Player extends piedpipers.sim.Player {
 	static Point insidePoint; // A point 10m inside the gate on the right side, used as intermediary so pipers
 	// don't try to go through the wall or lose rats.
 	
+	static boolean openedUpField = false;
+	
 	// Maps each piper's id to its dedicated section of the board
 	HashMap<Integer, int[]> boundaries= new HashMap<Integer, int[]>();
 	
@@ -98,7 +100,7 @@ public class Player extends piedpipers.sim.Player {
 			// LEVEL 3
 			// TODO: 40 is a magic number - it's how we could line up horizontally
 			// and have approximately half the board size covered by pipers.
-			System.out.println(dimension / pipers.length);
+			//System.out.println(dimension / pipers.length);
 			if (dimension / pipers.length < 40) {
 				return commenceSweep(pipers, rats, pipermusic, thetas);
 			}
@@ -224,22 +226,42 @@ public class Player extends piedpipers.sim.Player {
 					// Use sweep with greedy search within your vertical section.
 					
 					// Find closest rat. Move in that direction.
-					Point closestRat = findClosestRat(current, rats, pipers);
+					Point closestRat = findClosestRat("vertical", current, rats, pipers);
 					if (!isValidTarget(closestRat)) {
-						// All rats have been found. Move back toward gate.
-						finishedRound = true;
-						this.music = true;
-						dist = distance(current, insidePoint);
-						if (dist > 0) {
-							ox = (insidePoint.x - current.x) / dist * mpspeed;
-							oy = (insidePoint.y - current.y) / dist * mpspeed;
+						
+						if (!openedUpField) {
+							// Make the piper's purview the entire field to see if that changes things
+							int[] entireHorizField = {dimension/2, dimension};
+							boundaries.put(new Integer(id), entireHorizField);
+							openedUpField = true;
 						}
 						else {
-							dist = distance(current, gate);
-							ox = (gate.x - current.x) / dist * mpspeed;
-							oy = (gate.y - current.y) / dist * mpspeed;
+							// All rats have been found. Move back toward gate.
+							finishedRound = true;
+							this.music = true;
+							
+							dist = distance(current, insidePoint);
+							if (!hitInsidePointGoing) {
+								// Go to the inside point first.
+								targetPoint = insidePoint;
+								dist = distance(current, targetPoint);
+								ox = (targetPoint.x - current.x) / dist * mpspeed;
+								oy = (targetPoint.y - current.y) / dist * mpspeed;
+								// Update hitInsidePoint
+								if (dist < 1) {
+									hitInsidePointGoing = true;
+								}
+							}
+							else {
+								// You've hit the inside point.
+								// Wait until the straggler rats catch up.
+								// Now take them to the final dropoff point.
+								targetPoint = finalDropOffPoint;
+								dist = distance(current, targetPoint);
+								ox = (targetPoint.x - current.x) / dist * mpspeed;
+								oy = (targetPoint.y - current.y) / dist * mpspeed;
+							}
 						}
-	//					System.out.println("move toward the left side");	
 					}
 					else {
 						// All Rats have not been found; continue to catch em.
@@ -320,33 +342,43 @@ public class Player extends piedpipers.sim.Player {
 			}
 			else {
 				// Find closest rat. Move in that direction.
-				Point closestRat = findClosestRat(current, rats, pipers);
+				Point closestRat = findClosestRat("horizontal", current, rats, pipers);
 				if (!isValidTarget(closestRat)) {
-					// All rats have been found. Move back toward gate.
-					finishedRound = true;
-					this.music = true;
+					// Could be: no more rats in your section OR no more rats at all.
 					
-					dist = distance(current, insidePoint);
-					if (!hitInsidePointGoing) {
-						// Go to the inside point first.
-						targetPoint = insidePoint;
-						dist = distance(current, targetPoint);
-						ox = (targetPoint.x - current.x) / dist * mpspeed;
-						oy = (targetPoint.y - current.y) / dist * mpspeed;
-						// Update hitInsidePoint
-						if (dist < 1) {
-							hitInsidePointGoing = true;
-						}
+					if (!openedUpField) {
+						// Make the piper's purview the entire field to see if that changes things
+						int[] entireHorizField = {dimension/2, dimension};
+						boundaries.put(new Integer(id), entireHorizField);
+						openedUpField = true;
 					}
 					else {
-						// You've hit the inside point.
-						// Wait until the straggler rats catch up.
-						// Now take them to the final dropoff point.
-						targetPoint = finalDropOffPoint;
-						dist = distance(current, targetPoint);
-						ox = (targetPoint.x - current.x) / dist * mpspeed;
-						oy = (targetPoint.y - current.y) / dist * mpspeed;
-					}
+						// All rats have been found. Move back toward gate.
+						finishedRound = true;
+						this.music = true;
+						
+						dist = distance(current, insidePoint);
+						if (!hitInsidePointGoing) {
+							// Go to the inside point first.
+							targetPoint = insidePoint;
+							dist = distance(current, targetPoint);
+							ox = (targetPoint.x - current.x) / dist * mpspeed;
+							oy = (targetPoint.y - current.y) / dist * mpspeed;
+							// Update hitInsidePoint
+							if (dist < 1) {
+								hitInsidePointGoing = true;
+							}
+						}
+						else {
+							// You've hit the inside point.
+							// Wait until the straggler rats catch up.
+							// Now take them to the final dropoff point.
+							targetPoint = finalDropOffPoint;
+							dist = distance(current, targetPoint);
+							ox = (targetPoint.x - current.x) / dist * mpspeed;
+							oy = (targetPoint.y - current.y) / dist * mpspeed;
+						}
+					}	
 				}
 				else {
 					// All Rats have not been found; continue to catch em.
@@ -430,17 +462,7 @@ public class Player extends piedpipers.sim.Player {
 			return false;
 		}
 		return true;
-	}
-	
-	Point findFarthestRat(Point current, Point[] rats, Point[] pipers) {
-		return findXestRatNotInInfluence("far", current, rats, pipers);
-	}
-	
-	Point findClosestRat(Point current, Point[] rats, Point[] pipers) {
-		return findXestRatNotInInfluence("close", current, rats, pipers);
-	}
-	
-	
+	}	
 	
 	int findClosestPiper(int currentId, Point[] pipers) {
 		double distanceConsidered = 10.0;
@@ -452,9 +474,7 @@ public class Player extends piedpipers.sim.Player {
 		return -1;
 	}
 	
-	Point findXestRatNotInInfluence(String X, Point current, Point[] rats, Point[] pipers) {
-		// if X is "far", find the farthest rat from the current point.
-		// if X is "close", find the closest rat from the current point.
+	Point findClosestRat(String orientation, Point current, Point[] rats, Point[] pipers) {
 		
 		// First, generate list of rats that have already been found.
 		// If they've been found, don't generate future position.
@@ -503,93 +523,64 @@ public class Player extends piedpipers.sim.Player {
 			}
 		}
 		
-		if (X.equals("far")) {
-			// find the rat that's farthest away at time 0
-			// calculate distance to that rat
-			double farthestRatDistance = 0;
-			int farthestRatIndex = -1;
-			for (int i = 0; i< rats.length; i++) {
-				if (ratsFound[i] == true) {
+		// X == close
+		// Sequentially check one future tick at a time; as soon as a rat is
+		// inside the future tick circle, choose that rat.
+		for (int i = 0; i < predictionLookAhead; i++) {
+			for (int j = 0; j < rats.length; j++) {
+				if (ratsFound[j] == true) {
 					continue;
 				}
-				if (distance(current, rats[i]) > farthestRatDistance ){
-					farthestRatDistance = distance(current, rats[i]);
-					farthestRatIndex = i;
-				}
-			}	
-			
-			for (int i = 0; i < predictionLookAhead; i++) {
-				if (farthestRatDistance <  10+i*pspeed) {
-					Point predictedRatPosition = predictedRatPositions.get(farthestRatIndex).get(i);
-					return predictedRatPosition;
-				}
-			}
-			return rats[farthestRatIndex];
-		}
-		else {
-			// X == close
-			// Sequentially check one future tick at a time; as soon as a rat is
-			// inside the future tick circle, choose that rat.
-			for (int i = 0; i < predictionLookAhead; i++) {
-				for (int j = 0; j < rats.length; j++) {
-					if (ratsFound[j] == true) {
-						continue;
-					}
-					// Find where the j'th rat will be at future time i
-					Point predictedPoint = predictedRatPositions.get(j).get(i);
-					double ratDist = distance(current, predictedPoint);
-					if ((ratDist > 10) && (ratDist < (10 + i * mpspeed))) {
-						if (isInSection(predictedPoint, boundaries.get(id))) {
-							//System.out.println("returned at i = " + i);
-							//System.out.println("ratDist = " + ratDist);
-							return predictedPoint;
-						}	
-					}
-				}
-			}
-	//		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
-	//		System.out.println("ratsFound: " + Arrays.toString(ratsFound));
-			
-			// If we don't have enough heap space to store enough future positions
-			// so that we intersect with a rat, just find the closest rat at the current time and
-			// head there.
-			double closestSoFar = Integer.MAX_VALUE;
-			Point closestRat = new Point();
-			// Assumed true until we find a rat not in influence
-			for(int i = 0; i < rats.length; i++) {
-				if (getSide(rats[i]) == 0 || ratsFound[i] == true) {
-					continue;
-				}
-				double ratDist = distance(current, rats[i]);
-				if (ratDist < closestSoFar && ratDist > 10) {
-					if (isInSection(rats[i], boundaries.get(id))) {
-						closestSoFar = ratDist;
-						closestRat = rats[i];
+				// Find where the j'th rat will be at future time i
+				Point predictedPoint = predictedRatPositions.get(j).get(i);
+				double ratDist = distance(current, predictedPoint);
+				if ((ratDist > 10) && (ratDist < (10 + i * mpspeed))) {
+					if (isInSection(orientation, predictedPoint, boundaries.get(id))) {
+						//System.out.println("returned at i = " + i);
+						//System.out.println("ratDist = " + ratDist);
+						return predictedPoint;
 					}	
 				}
 			}
-			return closestRat;
 		}
-	}
-	
-	ArrayList<Point> getRatsInSection(int[] sectionCoords, Point[] rats) {
-		ArrayList<Point> ratsInSection = new ArrayList<Point>();
-		for (Point rat : rats) {
-			if (getSide(rat) == 0) {
+//		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
+//		System.out.println("ratsFound: " + Arrays.toString(ratsFound));
+		
+		// If we don't have enough heap space to store enough future positions
+		// so that we intersect with a rat, just find the closest rat at the current time and
+		// head there.
+		double closestSoFar = Integer.MAX_VALUE;
+		Point closestRat = new Point();
+		// Assumed true until we find a rat not in influence
+		for(int i = 0; i < rats.length; i++) {
+			if (getSide(rats[i]) == 0 || ratsFound[i] == true) {
 				continue;
 			}
-			if (isInSection(rat, sectionCoords)) {
-				ratsInSection.add(rat);
+			double ratDist = distance(current, rats[i]);
+			if (ratDist < closestSoFar && ratDist > 10) {
+				if (isInSection(orientation, rats[i], boundaries.get(id))) {
+					closestSoFar = ratDist;
+					closestRat = rats[i];
+				}	
 			}
 		}
-		return ratsInSection;
+		return closestRat;
 	}
 	
-	boolean isInSection(Point current, int[] section) {
-		int topCoord = section[0];
-		int bottomCoord = section[1];
-		if (current.y > topCoord && current.y < bottomCoord) {
-			return true;
+	boolean isInSection(String orientation, Point current, int[] section) {
+		if (orientation.equals("vertical")) {
+			int leftCoord = section[0];
+			int rightCoord = section[1];
+			if (current.x > leftCoord && current.x < rightCoord) {
+				return true;
+			}
+		}
+		else {
+			int topCoord = section[0];
+			int bottomCoord = section[1];
+			if (current.y > topCoord && current.y < bottomCoord) {
+				return true;
+			}
 		}
 		return false;
 	}
