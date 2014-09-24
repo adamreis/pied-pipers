@@ -56,7 +56,7 @@ public class Player extends piedpipers.sim.Player {
 		numMoves = 0;
 		
 		gate = new Point(dimension/2, dimension/2);
-		goalBox = new Rectangle2D.Double(dimension/2, dimension/2 - 10, 20, 20);
+		goalBox = new Rectangle2D.Double(dimension/2, dimension/2 - 20, 40, 40);
 		magnetPoint = new Point(dimension/2 + 10, dimension/2);
 		state = "default";
 		
@@ -189,7 +189,7 @@ public class Player extends piedpipers.sim.Player {
 //			}
 //			else {
 				if (state.equals("redirecting")) {
-					System.out.println("I am piper " + id + " and am redirecting.");
+					//System.out.println("I am piper " + id + " and am redirecting.");
 					ox = 0;
 					oy = 0;
 					if (this.music == true) {
@@ -198,7 +198,7 @@ public class Player extends piedpipers.sim.Player {
 						// let's see if this rat is going in the right direction
 						if (anyRatNearMeGoingTheRightDirectionOrNoneAtAll(current, rats)) {
 							state = "default";
-							System.out.println("changed state to 'default'");
+							//System.out.println("changed state to 'default'");
 						} else {
 							this.music = true;
 						}
@@ -210,7 +210,7 @@ public class Player extends piedpipers.sim.Player {
 					Point closestRat = findClosestRatGoingInWrongDirection(pipers[id], rats, pipers);
 					
 					if (closestRat == null) {
-						System.out.println("closestRat == null for piper " + id );
+						//System.out.println("closestRat == null for piper " + id );
 						// All rats have been found. Just chill out for now.
 //						finishedRound = true;
 						this.music = false;
@@ -218,22 +218,22 @@ public class Player extends piedpipers.sim.Player {
 						oy = 0;	
 					}
 					else if (distance(closestRat, current) <= 9.8){
-						System.out.println( closestRat.x +" " + closestRat.y);
-						System.out.println( current.x +" " + current.y);
+						//System.out.println( closestRat.x +" " + closestRat.y);
+						//System.out.println( current.x +" " + current.y);
 						ox = 0;
 						oy = 0;
 						this.music = true;
 						state = "redirecting";
-						System.out.println("changed state to 'redirecting' for piper " + id);
+						//System.out.println("changed state to 'redirecting' for piper " + id);
 					} else {
-						System.out.println("I am piper " + id + " and closestRat is at (" + closestRat.x + ", " + closestRat.y + ")");
+						//System.out.println("I am piper " + id + " and closestRat is at (" + closestRat.x + ", " + closestRat.y + ")");
 						// All Rats have not been found; continue to catch em.
 						double dist = distance(current, closestRat);
 						ox = (closestRat.x - current.x) / dist * pspeed;
 						oy = (closestRat.y - current.y) / dist * pspeed;
 						this.music = false;
-						System.out.println("moved toward closest rat at " +
-								closestRat.x + ", " + closestRat.y);
+						//System.out.println("moved toward closest rat at " +
+						//		closestRat.x + ", " + closestRat.y);
 					}
 				}
 			}
@@ -298,6 +298,7 @@ public class Player extends piedpipers.sim.Player {
 	}
 	
 	Point nextRatInGoalBox(Point current, Point[] rats) {
+		ArrayList<Point> predictedPts = new ArrayList<Point>();
 		Point predictedPoint;
 		for (int i = 0; i < predictionLookAhead; i++) {
 			for (int j = 0; j < rats.length; j++) {
@@ -307,11 +308,21 @@ public class Player extends piedpipers.sim.Player {
 				predictedPoint = predictedRatPositions.get(j).get(i);
 				
 				if (goalBox.contains(predictedPoint.x, predictedPoint.y) && distance(current, predictedPoint) > 10) {
-					return predictedPoint;
+					predictedPts.add(predictedPoint);
+					//return predictedPoint;
 				}
 			}
 		}
-		return null;
+		//return new Point();
+		double meanX = 0;
+		double meanY = 0;
+		for(Point p: predictedPts) {
+			meanX += p.x;
+			meanY += p.y;
+		}
+		meanX /= predictedPts.size();
+		meanY /= predictedPts.size();
+		return new Point(meanX, meanY);
 	}
 	
 	Point[] getAllRatsInNTicks(int ticks, Point[] rats) {
@@ -364,8 +375,8 @@ public class Player extends piedpipers.sim.Player {
 			currentIter = closestRat;
 			ratsIter = getAllRatsInNTicks(ticks, rats);
 		}
-		System.out.println("# Ticks to get to " + depth + " rats: " + ticks);
-		System.out.println("Depth closest: " + firstRat.x + " , " + firstRat.y);
+		//System.out.println("# Ticks to get to " + depth + " rats: " + ticks);
+		//System.out.println("Depth closest: " + firstRat.x + " , " + firstRat.y);
 		double[] intersect = new double[3];
 		int treeDepth = 0;
 		// go through all rats...phase 2
@@ -405,11 +416,11 @@ public class Player extends piedpipers.sim.Player {
 			if(deepEnough && ticks2 < ticks) {
 				ticks = ticks2;
 				firstRat = firstRat2;
-				System.out.println("FOUND SOMETHING BETTER TO GO TO");
-				System.out.println("Depth closest: " + firstRat.x + " , " + firstRat.y);
+				//System.out.println("FOUND SOMETHING BETTER TO GO TO");
+				//System.out.println("Depth closest: " + firstRat.x + " , " + firstRat.y);
 			}
 		}
-		System.out.println("DEPTH: " + treeDepth);
+		//System.out.println("DEPTH: " + treeDepth);
 		return firstRat;
 		// check if we are actually currently influencing that first rat...
 //		if(anyRatNearMeGoingTheRightDirectionOrNoneAtAll(current, rats)) {
@@ -469,7 +480,7 @@ public class Player extends piedpipers.sim.Player {
 //			}
 //		}
 		// TODO change this one around
-		Point nextRat = findNextRatToRedirect(current, rats, 10); //Point current, Point[] rats, int depth
+		Point nextRat = findNextRatToRedirect(current, rats, 1); //Point current, Point[] rats, int depth
 		if( nextRat.x != 0 || nextRat.y != 0 ) {
 			return nextRat;
 		}
