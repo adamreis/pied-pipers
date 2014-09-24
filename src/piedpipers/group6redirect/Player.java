@@ -322,6 +322,19 @@ public class Player extends piedpipers.sim.Player {
 		return ratPositions;
 	}
 	
+	double[] findIntersectPointTime(Point current, Point[] rats, int ratNum) {
+		for (int i = 0; i < predictionLookAhead; i++) {
+			Point predictedPoint = predictedRatPositions.get(ratNum).get(i);
+			double ratDist = distance(current, predictedPoint);
+			double[] pointTime = {predictedPoint.x, predictedPoint.y, i};
+			if (ratDist < (10 + i * pspeed)) {
+				return pointTime;
+			}
+		}
+		// not intersecting in time!
+		return null;
+	}
+	
 	// TODO
 	Point findNextRatToRedirect(Point current, Point[] rats, int depth) {
 		Point currentIter = current;
