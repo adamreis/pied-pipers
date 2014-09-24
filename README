@@ -15,3 +15,25 @@ java piedpipers.sim.Piedpipers dumb1 5 10 true 6 50
 
 FOR OUR GROUP:
 java piedpipers.sim.Piedpipers group6 5 10 true 6 50
+
+TESTED CONFIGURATIONS
+group6 20 1000 true 154 2000	|		| Uses greedy horizontal search. 		| Runs out of heap space.
+group6 20 1000 true 154 1000	|		| Uses greedy horizontal search.		| Runs out of heap space.
+group6 20 500 true 154 1000		|		| Uses greedy horizontal search.		| Takes a really really long time to run.
+										| Uses redirection.						| 14463 ticks.
+group6 7 140 true 154 300 		|		| Does greedy vertical search, then   	| 5709 ticks.
+										redirection.
+										| Redirection							| 4625 ticks
+group6 15 500 true 154 500		|		| Redirection							| 9217 ticks
+										| Horizontal greedy						| 9607 ticks
+group6 40 1000 true 154 500		|		| Redirection							| Runs out of heap space
+										| Greedy vertical						| 9931 ticks
+group6 1 20 true 154 1000		|		| Horizontal greedy						| 37777 ticks
+group6 1 20 true 154 500		|		| Horizontal greedy						| 22871 ticks
+group6 1 20 true 154 100		|		| Horizontal greedy						| 2010 ticks
+group6 8 500 true ? 500			|		| Redirection w/ radial					| 12162 ticks
+group6 8 500 true 154 500		|		| Redirection w/ radial					| 11994 ticks
+group6 8 500 true 154 500		|		| Redirection no partitioning			| 12474 ticks
+group6 5 1000 true 154 100		|		| Redirection w/ radial					| ≈8000
+group6 8 500 true 154 500														| 12700 (smaller bounding box)
+group6 8 500 true 154 500														| 11400 (larger bounding box)

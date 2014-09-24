@@ -91,48 +91,23 @@ public class Player extends piedpipers.sim.Player {
 			initi = true;
 		}
 		
-		//Point next = rPlayer.move(pipers, rats, pipermusic, thetas);
-		//this.music = rPlayer.music;
-		//return next;
-		
-		// LEVEL 1 OF DECISION TREE
 		if (pipers.length == 1) {
 			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
 		}
 		
-		// LEVEL 2
-		// if #remaining rats * 10 / dimension < 4, start greedy-searching.
-		// 4 is an experimental value. While dimension^2 makes more sense, it ended up
-		// being too unwieldy to attempt to calibrate, hence the change to single dimension.
-		if (((rats.length - numRatsFound(ratsFound)) / ( dimension / 10)) < 4) {
-			//System.out.println((rats.length - numRatsFound(ratsFound) / (dimension * dimension)) < 100);
-			// LEVEL 3
-			// TODO: 'high enough' is a magic number
-			// if piper to board density is high enough, use predictive greedy with partitioning.
-			//System.out.println("222");
-			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
-			//return next;
-			// else use redirection.
-			//return rPlayer.move(pipers, rats, pipermusic, thetas);
+		System.out.println(rats.length / dimension);
+		// Prevents the case where there are way too many rats to use redirection because others
+		// might get caught in the radius of influence.
+		if (dimension / pipers.length <= 20 && (rats.length / dimension >= 1)) {
+			return commenceSweep(pipers, rats, pipermusic, thetas);
 		}
-		else {
-			// LEVEL 3
-			// TODO: 40 is a magic number - it's how we could line up horizontally
-			// and have approximately half the board size covered by pipers.
-			// magic number:
-			// should never be below 40 (that's when the board size is guaranteed to be
-			// swept through.
-			// 45 is just an experimental value that made sense.
-			// it might end up higher since commencePredictiveGreedySearch is buggy when
-			// switched to after sweep finishes.
-			if (dimension / pipers.length < 45) {
-				//System.out.println("333333");
-				return commenceSweep(pipers, rats, pipermusic, thetas);
-			}
-			else {
-				//System.out.println("4444444444444");
-				return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
-			}
+		else if (dimension <= 200) {
+			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
+		}
+		else {	
+			Point next = rPlayer.move(pipers, rats, pipermusic, thetas);
+			this.music = rPlayer.music;
+			return next;
 		}
 	}
 	
@@ -175,8 +150,7 @@ public class Player extends piedpipers.sim.Player {
 				}
 				this.music = true;
 				ox = (targetPoint.x - current.x) / dist * mpspeed;
-				oy = (targetPoint.y - current.y) / dist * mpspeed;
-//					System.out.println("move toward dropoff point");	
+				oy = (targetPoint.y - current.y) / dist * mpspeed;	
 			} // End finishedRound case.
 			else {
 				// You haven't begun collecting rats yet.
@@ -185,7 +159,6 @@ public class Player extends piedpipers.sim.Player {
 				assert dist > 0;
 				ox = (gate.x - current.x) / dist * pspeed;
 				oy = (gate.y - current.y) / dist * pspeed;
-//				System.out.println("move toward the right side");
 			}
 		break;
 		default:
@@ -261,7 +234,7 @@ public class Player extends piedpipers.sim.Player {
 							boundaries.put(new Integer(id), entireHorizField);
 							openedUpField = true;
 						}
-						else {
+						else if (numRatsFound(ratsFound) == rats.length){
 							// All rats have been found. Move back toward gate.
 							finishedRound = true;
 							this.music = true;
