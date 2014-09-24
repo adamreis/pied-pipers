@@ -91,37 +91,49 @@ public class Player extends piedpipers.sim.Player {
 			initi = true;
 		}
 		
-		Point next = rPlayer.move(pipers, rats, pipermusic, thetas);
-		this.music = rPlayer.music;
-		return next;
+		//Point next = rPlayer.move(pipers, rats, pipermusic, thetas);
+		//this.music = rPlayer.music;
+		//return next;
 		
 		// LEVEL 1 OF DECISION TREE
-		/*if (pipers.length == 1) {
+		if (pipers.length == 1) {
 			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
 		}
 		
 		// LEVEL 2
-		// TODO: 100 is a magic number
-		if ((rats.length - numRatsFound(ratsFound) / (dimension * dimension)) < 100) {
+		// if #remaining rats * 10 / dimension < 4, start greedy-searching.
+		// 4 is an experimental value. While dimension^2 makes more sense, it ended up
+		// being too unwieldy to attempt to calibrate, hence the change to single dimension.
+		if (((rats.length - numRatsFound(ratsFound)) / ( dimension / 10)) < 4) {
+			//System.out.println((rats.length - numRatsFound(ratsFound) / (dimension * dimension)) < 100);
 			// LEVEL 3
 			// TODO: 'high enough' is a magic number
 			// if piper to board density is high enough, use predictive greedy with partitioning.
-			//return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
+			//System.out.println("222");
+			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
+			//return next;
 			// else use redirection.
-			return rPlayer.move(pipers, rats, pipermusic, thetas);
+			//return rPlayer.move(pipers, rats, pipermusic, thetas);
 		}
 		else {
 			// LEVEL 3
 			// TODO: 40 is a magic number - it's how we could line up horizontally
 			// and have approximately half the board size covered by pipers.
-			//System.out.println(dimension / pipers.length);
-			if (dimension / pipers.length < 60) {
+			// magic number:
+			// should never be below 40 (that's when the board size is guaranteed to be
+			// swept through.
+			// 45 is just an experimental value that made sense.
+			// it might end up higher since commencePredictiveGreedySearch is buggy when
+			// switched to after sweep finishes.
+			if (dimension / pipers.length < 45) {
+				//System.out.println("333333");
 				return commenceSweep(pipers, rats, pipermusic, thetas);
 			}
 			else {
+				//System.out.println("4444444444444");
 				return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
 			}
-		}*/
+		}
 	}
 	
 	Point commenceSweep(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
