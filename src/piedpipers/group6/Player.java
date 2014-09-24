@@ -5,9 +5,10 @@ import java.util.HashMap;
 import java.util.Random;
 
 import piedpipers.sim.Point;
-
+import piedpipers.group6redirect.RedirectPlayer;
 
 public class Player extends piedpipers.sim.Player {
+	static RedirectPlayer rPlayer;
 	static int npipers;
 	
 	static double pspeed = 0.4999999999;
@@ -54,6 +55,7 @@ public class Player extends piedpipers.sim.Player {
 	static Point targetRat;
 	
 	public void init() {
+
 		OPEN_LEFT = dimension/2-1;
 		OPEN_RIGHT = dimension/2+1;
 		
@@ -82,12 +84,19 @@ public class Player extends piedpipers.sim.Player {
 			for (int i = 0; i < rats.length; i++) {
 				predictedRatPositions.add(new ArrayList<Point>(predictionLookAhead));
 			}
+			rPlayer = new RedirectPlayer();
+			rPlayer.id = id;
+			rPlayer.dimension = dimension;
 			ratsFound = new boolean[rats.length];
 			initi = true;
 		}
 		
+		Point next = rPlayer.move(pipers, rats, pipermusic, thetas);
+		this.music = rPlayer.music;
+		return next;
+		
 		// LEVEL 1 OF DECISION TREE
-		if (pipers.length == 1) {
+		/*if (pipers.length == 1) {
 			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
 		}
 		
@@ -97,8 +106,9 @@ public class Player extends piedpipers.sim.Player {
 			// LEVEL 3
 			// TODO: 'high enough' is a magic number
 			// if piper to board density is high enough, use predictive greedy with partitioning.
-			return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
+			//return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
 			// else use redirection.
+			return rPlayer.move(pipers, rats, pipermusic, thetas);
 		}
 		else {
 			// LEVEL 3
@@ -111,7 +121,7 @@ public class Player extends piedpipers.sim.Player {
 			else {
 				return commencePredictiveGreedySearch(pipers, rats, pipermusic, thetas);
 			}
-		}
+		}*/
 	}
 	
 	Point commenceSweep(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {

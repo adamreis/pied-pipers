@@ -9,7 +9,7 @@ import java.util.Random;
 
 import piedpipers.sim.Point;
 
-public class Player extends piedpipers.sim.Player {
+public class RedirectPlayer extends piedpipers.sim.Player {
 	static int npipers;
 	
 	static double pspeed = 0.49999999;
