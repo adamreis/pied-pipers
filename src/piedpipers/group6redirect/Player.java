@@ -343,7 +343,7 @@ public class Player extends piedpipers.sim.Player {
 		Point closestRat = new Point();
 		Point firstRat = new Point();
 		for(int i = 0; i < depth; i++) {
-			// greedily find next rat position
+			// greedily find next rat position, phase 1
 			double[] closestRatPos = findClosestOneRatToRedirect(currentIter, ratsIter);
 			// couldn't even get to depth using greedy...stop here
 			if(closestRatPos == null) {
@@ -359,6 +359,36 @@ public class Player extends piedpipers.sim.Player {
 			ratsIter = getAllRatsInNTicks(ticks, rats);
 		}
 		System.out.println("# Ticks to get to " + depth + " rats: " + ticks);
+		double[] intersect = new double[3];
+		// go through all rats...phase 2
+		for(int ratIdx = 0; ratIdx < rats.length; ratIdx++ ) {
+			Point current2Iter = current;
+			Point[] rats2Iter = rats;
+			int ticks2 = 0;
+			Point firstRat2 = new Point();
+			boolean deepEnough = true;
+			// as deep as needed / reasonable...
+			for(int depthIdx = 0; depthIdx < depth; depthIdx++) {
+				intersect = findIntersectPointTime(current2Iter, rats2Iter, ratIdx);
+				// keep calculating only if time is smaller and intersection is still possible
+				if(intersect != null && intersect[2] < ticks ) {
+					if( depthIdx == 0) {
+						firstRat2 = new Point(intersect[0], intersect[1]);
+					}
+					ticks2 += (int) intersect[2];
+					current2Iter = new Point(intersect[0], intersect[1]);
+					rats2Iter = getAllRatsInNTicks(ticks2, rats);
+				} else {
+					deepEnough = false;
+					break;
+				}
+			}
+			// if actually got to the necessary # of rats & on better time
+			if(deepEnough && ticks2 < ticks) {
+				ticks = ticks2;
+				firstRat = firstRat2;
+			}
+		}
 		return firstRat;
 	}
 	
@@ -412,6 +442,7 @@ public class Player extends piedpipers.sim.Player {
 //			}
 //		}
 		Point nextRat = findNextRatToRedirect(current, rats, 5); //Point current, Point[] rats, int depth
+		System.out.println("FOUND NEXT RAT");
 		if( nextRat.x != 0 || nextRat.y != 0 ) {
 			return nextRat;
 		}
