@@ -1,7 +1,7 @@
 package piedpipers.group6redirect;
 
-import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
+import java.awt.geom.*;
+import java.awt.Polygon;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -44,7 +44,8 @@ public class RedirectPlayer extends piedpipers.sim.Player {
 	boolean[] ratsCaptured;
 	boolean[] ratsInRightDirection;
 	
-	Rectangle2D.Double[] partitions;
+	Polygon[] partitions;
+	Polygon wholeRightSide;
 	
 	Point runningAwayPoint;
 	int runningAwayCount;
@@ -94,10 +95,59 @@ public class RedirectPlayer extends piedpipers.sim.Player {
 			magnetPiperId = pipers.length - 1;
 			initi = true;
 			
-			partitions = new Rectangle2D.Double[pipers.length - 1];
-			double partitionHeight = dimension/(pipers.length - 1);
+			int[] wholeRightX = {dimension/2, dimension, dimension, dimension/2};
+			int[] wholeRightY = {0, 0, dimension, dimension};
+			wholeRightSide = new Polygon(wholeRightX, wholeRightY, 4);
+			
+			partitions = new Polygon[pipers.length - 1];
+			double partitionAngle = Math.PI/(pipers.length - 1);
+			int[] x = new int[3];
+			int[] y = new int[3];
+			x[0] = dimension/2;
+			y[0] = dimension/2;
 			for (int i = 0; i < pipers.length - 1; i++) {
-				partitions[i] = new Rectangle2D.Double(dimension/2, i * partitionHeight, dimension/2, partitionHeight);
+				double angle = (i + 1) * partitionAngle;
+				int yHeight = (int) ((dimension/2)/Math.tan(angle));
+				if (i == 0 ){
+					// top section
+					x[1] = dimension/2;
+					y[1] = 0;
+					
+					if (yHeight >= dimension/2) {
+						x[2] = dimension;
+						y[2] = dimension/2 - yHeight;
+					} else {
+						y[2] = 0;
+						x[2] = (int)(dimension/2 * Math.tan(angle));
+					}
+					
+				} else if (i == pipers.length - 2) {
+					// bottom section
+					x[1] = new Integer(x[2]);
+					y[1] = new Integer(y[2]);
+					x[2] = dimension/2;
+					y[2] = dimension;
+//					
+//					if (yHeight <= -1 * dimension/2) {
+//						x[1] = dimension;
+//						y[1] = dimension/2 - yHeight;
+//					} else {
+//						y[2] = dimension;
+//						x[2] = (int)(dimension/2 * Math.tan(angle));
+//					}
+					
+					
+				} else {
+					// everything else
+					x[1] = dimension;
+					x[2] = dimension;
+					y[1] = y[2];
+					y[2] = dimension/2 - yHeight;
+				}
+//				System.out.println("Partition shape for rat #" + i);
+//				System.out.println("x:" + Arrays.toString(x));
+//				System.out.println("y:" + Arrays.toString(y));
+				partitions[i] = new Polygon(x, y, 3);
 			}
 			
 		}
@@ -231,7 +281,7 @@ public class RedirectPlayer extends piedpipers.sim.Player {
 				} else if (tooCloseToOtherPiper(id, pipers)){
 					// Am I too close to any other pipers (with lower id's)?  If so, run away!
 					runningAwayCount = 20;
-					System.out.println("Running away!");
+//					System.out.println("Running away!");
 					this.music = false;
 					
 					double dist = distance(runningAwayPoint, current);
@@ -380,8 +430,9 @@ public class RedirectPlayer extends piedpipers.sim.Player {
 			}
 		}
 		
-		if (partitions[id].getHeight() != dimension) {
-			partitions[id] = new Rectangle2D.Double(dimension/2, 0, dimension/2, dimension);
+		if (partitions[id] != wholeRightSide) {
+//			System.out.println("expanding partition for piper #" + id);
+			partitions[id] = wholeRightSide;
 			return findClosestRatGoingInWrongDirectionInPartition(current, rats, pipers);
 		}
 		
