@@ -49,6 +49,8 @@ public class Player extends piedpipers.sim.Player {
 	static boolean hitTheWall = false;
 	static boolean hitBottomWall = false;
 	
+	boolean[] ratsFound;
+	
 	static Point targetRat;
 	
 	public void init() {
@@ -62,6 +64,7 @@ public class Player extends piedpipers.sim.Player {
 		catchUpCounter = 5;
 		
 		predictedRatPositions = new ArrayList<ArrayList<Point>>();
+
 	}
 
 	static double distance(Point a, Point b) {
@@ -79,6 +82,7 @@ public class Player extends piedpipers.sim.Player {
 			for (int i = 0; i < rats.length; i++) {
 				predictedRatPositions.add(new ArrayList<Point>(predictionLookAhead));
 			}
+			ratsFound = new boolean[rats.length];
 			initi = true;
 		}
 		
@@ -89,7 +93,7 @@ public class Player extends piedpipers.sim.Player {
 		
 		// LEVEL 2
 		// TODO: 100 is a magic number
-		if ((dimension * dimension) / rats.length < 100) {
+		if ((rats.length - numRatsFound(ratsFound) / (dimension * dimension)) < 100) {
 			// LEVEL 3
 			// TODO: 'high enough' is a magic number
 			// if piper to board density is high enough, use predictive greedy with partitioning.
@@ -101,7 +105,7 @@ public class Player extends piedpipers.sim.Player {
 			// TODO: 40 is a magic number - it's how we could line up horizontally
 			// and have approximately half the board size covered by pipers.
 			//System.out.println(dimension / pipers.length);
-			if (dimension / pipers.length < 40) {
+			if (dimension / pipers.length < 60) {
 				return commenceSweep(pipers, rats, pipermusic, thetas);
 			}
 			else {
@@ -478,7 +482,7 @@ public class Player extends piedpipers.sim.Player {
 		
 		// First, generate list of rats that have already been found.
 		// If they've been found, don't generate future position.
-		boolean[] ratsFound = new boolean[rats.length];
+		ratsFound = new boolean[rats.length];
 		boolean allRatsFound = true;
 		for (int i = 0; i < rats.length; i++) {
 			boolean thisRatFound = false;
@@ -592,6 +596,16 @@ public class Player extends piedpipers.sim.Player {
 			}
 		}
 		return false;
+	}
+	
+	int numRatsFound(boolean[] ratsFound) {
+		int numRats = 0;
+		for (boolean b : ratsFound) {
+			if (b) {
+				numRats++;
+			}
+		}
+		return numRats;
 	}
 	
 	boolean closeToWall (Point current) {
