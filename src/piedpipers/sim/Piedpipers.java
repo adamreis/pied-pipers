@@ -241,7 +241,7 @@ public class Piedpipers {
 			int steps = 0;
 
 			if (e.getSource() == timer)
-				steps = 10;
+				steps = 1;
 			else if (e.getSource() == next)
 				steps = 1;
 			else if (e.getSource() == next10)

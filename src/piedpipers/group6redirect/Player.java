@@ -56,7 +56,7 @@ public class Player extends piedpipers.sim.Player {
 		numMoves = 0;
 		
 		gate = new Point(dimension/2, dimension/2);
-		goalBox = new Rectangle2D.Double(dimension/2, dimension/2 - 12, 25, 25);
+		goalBox = new Rectangle2D.Double(dimension/2, dimension/2 - 10, 20, 20);
 		magnetPoint = new Point(dimension/2 + 10, dimension/2);
 		state = "default";
 		
@@ -310,13 +310,53 @@ public class Player extends piedpipers.sim.Player {
 		return null;
 	}
 	
-	Point findClosestRatGoingInWrongDirection(Point current, Point[] rats, Point[] pipers) {
+	Point[] getAllRatsInNTicks(int ticks, Point[] rats) {
+		Point[] ratPositions = new Point[rats.length];
+		for(int i=0; i < rats.length; i++ ) {
+			if(! predictedRatPositions.get(i).isEmpty() ) {
+				ratPositions[i] = predictedRatPositions.get(i).get(ticks);
+			} else {
+				ratPositions[i] = rats[i];
+			}
+		}
+		return ratPositions;
+	}
+	
+	// TODO
+	Point findNextRatToRedirect(Point current, Point[] rats, int depth) {
+		Point currentIter = current;
+		Point[] ratsIter = rats;
+		int ticks = 0;
+		Point closestRat = new Point();
+		Point firstRat = new Point();
+		for(int i = 0; i < depth; i++) {
+			// greedily find next rat position
+			double[] closestRatPos = findClosestOneRatToRedirect(currentIter, ratsIter);
+			// couldn't even get to depth using greedy...stop here
+			if(closestRatPos == null) {
+				continue;
+			}
+			closestRat = new Point(closestRatPos[0], closestRatPos[1]);
+			if( i == 0) {
+				firstRat = closestRat;
+			}
+			ticks += (int) closestRatPos[2];
+			// do an theoretical update
+			currentIter = closestRat;
+			ratsIter = getAllRatsInNTicks(ticks, rats);
+		}
+		System.out.println("# Ticks to get to " + depth + " rats: " + ticks);
+		return firstRat;
+	}
+	
+	double[] findClosestOneRatToRedirect(Point current, Point[] rats) {
 		for (int i = 0; i < predictionLookAhead; i++) {
 			for (int j = 0; j < rats.length; j++) {
 				if (ratsCaptured[j] || ratsInRightDirection[j]) {
 					continue;
 				}
 				Point predictedPoint = predictedRatPositions.get(j).get(i);
+				double[] pointTime = {predictedPoint.x, predictedPoint.y, i};
 				double ratDist = distance(current, predictedPoint);		
 				if (ratDist <= 10) {
 					// check to see if this rat, or any other rat near me, is going in the right direction
@@ -324,33 +364,66 @@ public class Player extends piedpipers.sim.Player {
 						continue;
 					} else {
 						ratOfInterest = j;
-						return predictedPoint;
+						return pointTime;
 					}
 				} else if (ratDist < (10 + i * pspeed))  {
 //					System.out.println("returning future point " + i + " for rat #" + j);
-					return predictedPoint;
+					return pointTime;
 				}
 			}
 		}
-		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
-//		System.out.println("ratsFound: " + Arrays.toString(ratsCaptured));
-		double closestSoFar = Integer.MAX_VALUE;
-		Point closestRat = new Point();
-		// Assumed true until we find a rat not in influence
-		for(int i = 0; i < rats.length; i++) {
-			if (ratsCaptured[i] == true || ratsInRightDirection[i]) {
-				continue;
-			}
-			double ratDist = distance(current, rats[i]);
-			if (ratDist < closestSoFar && ratDist > 10) {
-				closestSoFar = ratDist;
-				closestRat = rats[i];
-			}
+		System.out.println("RETURNING NULL");
+		return null;
+	}
+	
+	Point findClosestRatGoingInWrongDirection(Point current, Point[] rats, Point[] pipers) {
+//		for (int i = 0; i < predictionLookAhead; i++) {
+//			for (int j = 0; j < rats.length; j++) {
+//				if (ratsCaptured[j] || ratsInRightDirection[j]) {
+//					continue;
+//				}
+//				Point predictedPoint = predictedRatPositions.get(j).get(i);
+//				double ratDist = distance(current, predictedPoint);		
+//				if (ratDist <= 10) {
+//					// check to see if this rat, or any other rat near me, is going in the right direction
+//					if (anyRatNearMeGoingTheRightDirectionOrNoneAtAll(current, rats)) {
+//						continue;
+//					} else {
+//						ratOfInterest = j;
+//						return predictedPoint;
+//					}
+//				} else if (ratDist < (10 + i * pspeed))  {
+////					System.out.println("returning future point " + i + " for rat #" + j);
+//					return predictedPoint;
+//				}
+//			}
+//		}
+		Point nextRat = findNextRatToRedirect(current, rats, 5); //Point current, Point[] rats, int depth
+		if( nextRat.x != 0 || nextRat.y != 0 ) {
+			return nextRat;
 		}
-		if (closestSoFar < Integer.MAX_VALUE) {
-			return closestRat;
-		} else {
-			return null;
+		// if findNextRatToRedirect doesn't have a rat to give...
+		else {
+			System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
+	//		System.out.println("ratsFound: " + Arrays.toString(ratsCaptured));
+			double closestSoFar = Integer.MAX_VALUE;
+			Point closestRat = new Point();
+			// Assumed true until we find a rat not in influence
+			for(int i = 0; i < rats.length; i++) {
+				if (ratsCaptured[i] == true || ratsInRightDirection[i]) {
+					continue;
+				}
+				double ratDist = distance(current, rats[i]);
+				if (ratDist < closestSoFar && ratDist > 10) {
+					closestSoFar = ratDist;
+					closestRat = rats[i];
+				}
+			}
+			if (closestSoFar < Integer.MAX_VALUE) {
+				return closestRat;
+			} else {
+				return null;
+			}
 		}
 	}
 	
