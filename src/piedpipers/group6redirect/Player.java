@@ -12,8 +12,8 @@ import piedpipers.sim.Point;
 public class Player extends piedpipers.sim.Player {
 	static int npipers;
 	
-	static double pspeed = 0.49999;
-	static double mpspeed = 0.099999;
+	static double pspeed = 0.49999999;
+	static double mpspeed = 0.099999999;
 	static double WALK_SPEED = 0.1; // 1m/s, walking speed for rats
 	
 	static int predictionLookAhead = 2000; 
@@ -44,6 +44,11 @@ public class Player extends piedpipers.sim.Player {
 	boolean[] ratsCaptured;
 	boolean[] ratsInRightDirection;
 	
+	Rectangle2D.Double[] partitions;
+	
+	Point runningAwayPoint;
+	int runningAwayCount;
+	
 	Point gate;
 	Point magnetPoint;
 	Rectangle2D goalBox;
@@ -60,6 +65,9 @@ public class Player extends piedpipers.sim.Player {
 		magnetPoint = new Point(dimension/2 + 10, dimension/2);
 		state = "default";
 		
+		runningAwayPoint = new Point(3 * dimension/2, dimension/2);
+		runningAwayCount = 0;
+		
 		predictedRatPositions = new ArrayList<ArrayList<Point>>();
 		farAwayPositions = new ArrayList<Point>(predictionLookAhead);
 		for (int i = 0; i < predictionLookAhead; i++) {
@@ -75,6 +83,7 @@ public class Player extends piedpipers.sim.Player {
 	// my position: pipers[id-1]
 
 	public Point move(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
+//		System.out.println("I am rat " + id + " ");
 		if (!initi) {
 			this.init();
 			for (int i = 0; i < rats.length; i++) {
@@ -82,8 +91,15 @@ public class Player extends piedpipers.sim.Player {
 			}
 			ratsCaptured = new boolean[rats.length];
 			ratsInRightDirection = new boolean[rats.length];
-			magnetPiperId = pipers.length/2;
+			magnetPiperId = pipers.length - 1;
 			initi = true;
+			
+			partitions = new Rectangle2D.Double[pipers.length - 1];
+			double partitionHeight = dimension/(pipers.length - 1);
+			for (int i = 0; i < pipers.length - 1; i++) {
+				partitions[i] = new Rectangle2D.Double(dimension/2, i * partitionHeight, dimension/2, partitionHeight);
+			}
+			
 		}
 		numMoves++;
 		npipers = pipers.length;
@@ -189,6 +205,7 @@ public class Player extends piedpipers.sim.Player {
 //			}
 //			else {
 				if (state.equals("redirecting")) {
+//					System.out.println("redirecting");
 					ox = 0;
 					oy = 0;
 					if (this.music == true) {
@@ -204,9 +221,27 @@ public class Player extends piedpipers.sim.Player {
 						
 					}
 					// redirect and switch on and off accordingly
-				} else {
+				} else if (runningAwayCount > 0){
+					runningAwayCount--;
+					this.music = false;
+					
+					double dist = distance(runningAwayPoint, current);
+					ox = (runningAwayPoint.x - current.x) / dist * pspeed;
+					oy = (runningAwayPoint.y - current.y) / dist * pspeed;
+				} else if (tooCloseToOtherPiper(id, pipers)){
+					// Am I too close to any other pipers (with lower id's)?  If so, run away!
+					runningAwayCount = 20;
+					System.out.println("Running away!");
+					this.music = false;
+					
+					double dist = distance(runningAwayPoint, current);
+					ox = (runningAwayPoint.x - current.x) / dist * pspeed;
+					oy = (runningAwayPoint.y - current.y) / dist * pspeed;
+					
+				} else {	
+					
 					// Find closest rat that's not heading in the direction we want it to be. Move in that direction.
-					Point closestRat = findClosestRatGoingInWrongDirection(pipers[id], rats, pipers);
+					Point closestRat = findClosestRatGoingInWrongDirectionInPartition(pipers[id], rats, pipers);
 					if (closestRat == null) {
 //						System.out.println("clossetRat == null");
 						// All rats have been found. Just chill out for now.
@@ -222,7 +257,7 @@ public class Player extends piedpipers.sim.Player {
 						state = "redirecting";
 //						System.out.println("changed state to 'redirecting'");
 					} else {
-						System.out.println("I am rat " + id + " and closestRat is at (" + closestRat.x + ", " + closestRat.y + ")");
+//						System.out.println("closestRat is at (" + closestRat.x + ", " + closestRat.y + "). distance = " + distance(current, closestRat));
 						// All Rats have not been found; continue to catch em.
 						double dist = distance(current, closestRat);
 						ox = (closestRat.x - current.x) / dist * pspeed;
@@ -239,7 +274,14 @@ public class Player extends piedpipers.sim.Player {
 		return current;
 	}
 	
-	
+	boolean tooCloseToOtherPiper(int id, Point[] pipers) {
+		for (int i = 0; i < id; i++) {
+			if (distance(pipers[id], pipers[i]) < 5) {
+				return true;
+			}
+		}
+		return false;
+	}
 	Point getPiperStartPoint(int id) {
 		int[] boundary = boundaries.get(id);
 		int startX = dimension;
@@ -252,12 +294,17 @@ public class Player extends piedpipers.sim.Player {
 
 		for (int i = 0; i < rats.length; i++) {
 			boolean thisRatFound = false;
-			boolean thisRatInRightDirection = false;
 			if (getSide(rats[i]) == 0 || distance(rats[i], pipers[magnetPiperId]) <= 10) {
 				thisRatFound = true;
 			} else {
-				for (Point p: pipers) {
-					if (p != current && distance(rats[i], p) <= 10) {
+//				for (Point p: pipers) {
+//					if (p != current && distance(rats[i], p) <= 10) {
+//						thisRatFound = true;
+//						break;
+//					}
+//				}
+				for (int j = 0; j < pipers.length; j++) {
+					if (j != id && distance(rats[i], pipers[j]) <= 10) {
 						thisRatFound = true;
 						break;
 					}
@@ -310,10 +357,10 @@ public class Player extends piedpipers.sim.Player {
 		return null;
 	}
 	
-	Point findClosestRatGoingInWrongDirection(Point current, Point[] rats, Point[] pipers) {
+	Point findClosestRatGoingInWrongDirectionInPartition(Point current, Point[] rats, Point[] pipers) {
 		for (int i = 0; i < predictionLookAhead; i++) {
 			for (int j = 0; j < rats.length; j++) {
-				if (ratsCaptured[j] || ratsInRightDirection[j]) {
+				if (ratsCaptured[j] || ratsInRightDirection[j] || !partitions[id].contains(rats[j].x, rats[j].y)) {
 					continue;
 				}
 				Point predictedPoint = predictedRatPositions.get(j).get(i);
@@ -332,8 +379,16 @@ public class Player extends piedpipers.sim.Player {
 				}
 			}
 		}
-		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsFound looks like:");
-//		System.out.println("ratsFound: " + Arrays.toString(ratsCaptured));
+		
+		if (partitions[id].getHeight() != dimension) {
+			partitions[id] = new Rectangle2D.Double(dimension/2, 0, dimension/2, dimension);
+			return findClosestRatGoingInWrongDirectionInPartition(current, rats, pipers);
+		}
+		
+//		System.out.println("findClosestRatNotInInfluence should not get to this point!  Here's what ratsCaptured looks like:");
+//		System.out.println("ratsCaptured: " + Arrays.toString(ratsCaptured));
+//		System.out.println("rightDirectn: " + Arrays.toString(ratsInRightDirection));
+		
 		double closestSoFar = Integer.MAX_VALUE;
 		Point closestRat = new Point();
 		// Assumed true until we find a rat not in influence
@@ -341,8 +396,9 @@ public class Player extends piedpipers.sim.Player {
 			if (ratsCaptured[i] == true || ratsInRightDirection[i]) {
 				continue;
 			}
+//			System.out.println("I found a rat that isn't captured or in the right direction.  its ID is " + i);
 			double ratDist = distance(current, rats[i]);
-			if (ratDist < closestSoFar && ratDist > 10) {
+			if (ratDist < closestSoFar) {
 				closestSoFar = ratDist;
 				closestRat = rats[i];
 			}
