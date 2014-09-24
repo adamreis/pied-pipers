@@ -18,14 +18,16 @@ public class Player extends piedpipers.sim.Player {
 	
 	// Used to wait for 5 ticks before moving into the left side with all the rats.
 	// Helps make sure there are no stragglers.
-	static int catchUpCounter = 5;
+	static int catchUpCounter;
 	
 	// Used to make sure all pipers get across fence initially in sweep.
-	static boolean hitTempPoint = false;
+	static boolean hitInsidePointComing = false;
+	static boolean hitInsidePointGoing = false;
 	
-	static double piperDropDistance = 4.0;
-	
-	static Point dropOffPoint = new Point();
+	static Point finalDropOffPoint; // On the left side, where everyone should bring the rats when they're done.
+	static Point gate; // The exact middle of the gate.
+	static Point insidePoint; // A point 10m inside the gate on the right side, used as intermediary so pipers
+	// don't try to go through the wall or lose rats.
 	
 	// Maps each piper's id to its dedicated section of the board
 	HashMap<Integer, int[]> boundaries= new HashMap<Integer, int[]>();
@@ -43,14 +45,19 @@ public class Player extends piedpipers.sim.Player {
 	static boolean finishedRound = false;
 	static boolean initi = false;
 	static boolean hitTheWall = false;
-	static boolean droppedRats = false;
+	static boolean hitBottomWall = false;
 	
 	static Point targetRat;
 	
 	public void init() {
-		dropOffPoint = new Point(0, dimension/2);
 		OPEN_LEFT = dimension/2-1;
 		OPEN_RIGHT = dimension/2+1;
+		
+		finalDropOffPoint = new Point(dimension / 2 - 10, dimension / 2); // On the left side, where everyone should bring the rats when they're done.
+		gate = new Point(dimension/2, dimension/2); // The exact middle of the gate.
+		insidePoint = new Point(dimension / 2 + 10, dimension / 2); // A point inside the gate on the right side, used as intermediary so pipers
+		// don't try to go through the wall. DO NOT make this more than 10; it wont work on smaller graphs.
+		catchUpCounter = 5;
 		
 		predictedRatPositions = new ArrayList<ArrayList<Point>>();
 	}
@@ -65,10 +72,11 @@ public class Player extends piedpipers.sim.Player {
 	public Point move(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
 		if (!initi) {
 			this.init();
+			// All initializations that require information.
+			npipers = pipers.length;
 			for (int i = 0; i < rats.length; i++) {
 				predictedRatPositions.add(new ArrayList<Point>(predictionLookAhead));
 			}
-			npipers = pipers.length;
 			initi = true;
 		}
 		
@@ -102,10 +110,16 @@ public class Player extends piedpipers.sim.Player {
 	
 	Point commenceSweep(Point[] pipers, Point[] rats, boolean[] pipermusic, int[] thetas) {
 		String mode = "sweep";
+		ratThetas = thetas.clone();
+		lastRatThetas = currentRatThetas;
+		currentRatThetas = thetas.clone();
+		
 		Point current = pipers[id];
 		Point gate = new Point(dimension/2, dimension/2);
 		double ox = 0; // delta x/y
 		double oy = 0;
+		Point targetPoint = new Point();
+		double dist = 0;
 		switch (getSide(current)) {
 		case 0:
 			if (finishedRound) {
@@ -114,28 +128,32 @@ public class Player extends piedpipers.sim.Player {
 				// the case where dimension / pipers <=20, it can grab all the rats
 				// in one sweep and retreat to the dropoff point without going into any
 				// other stage.
-				if (distance(current, dropOffPoint) != 0) {
-					this.music = true;
-					dropOffPoint = new Point(dimension/2 - 5, dimension/2);
-					double dist = distance(current, dropOffPoint);
-					ox = (dropOffPoint.x - current.x) / dist * mpspeed;
-					oy = (dropOffPoint.y - current.y) / dist * mpspeed;
-//					System.out.println("move toward dropoff point");	
+
+				if (!hitInsidePointGoing) {
+					// Go to the inside point first.
+					targetPoint = insidePoint;
+					dist = distance(current, targetPoint);
+					// Update hitInsidePoint
+					if (dist < 1) {
+						hitInsidePointGoing = true;
+					}
 				}
 				else {
+					// You've hit the inside point.
 					// Wait until the straggler rats catch up.
-					if (catchUpCounter > 0) {
-						ox = 0;
-						oy = 0;
-						catchUpCounter --;
-					}
-					// Else you've reached the dropoff point. Don't stop playing.
+					// Now take them to the final dropoff point.
+					targetPoint = finalDropOffPoint;
+					dist = distance(current, targetPoint);
 				}
-			}
+				this.music = true;
+				ox = (targetPoint.x - current.x) / dist * mpspeed;
+				oy = (targetPoint.y - current.y) / dist * mpspeed;
+//					System.out.println("move toward dropoff point");	
+			} // End finishedRound case.
 			else {
 				// You haven't begun collecting rats yet.
 				this.music = false;
-				double dist = distance(current, gate);
+				dist = distance(current, gate);
 				assert dist > 0;
 				ox = (gate.x - current.x) / dist * pspeed;
 				oy = (gate.y - current.y) / dist * pspeed;
@@ -147,23 +165,100 @@ public class Player extends piedpipers.sim.Player {
 			if (boundaries.isEmpty()) {
 				setBoundaries(pipers, mode);
 			}
+			// If you haven't hit the top wall yet, head there.
 			if (!hitTheWall){
-					hitTheWall = closeToWall(current);
-					this.music = false;
-					Point piperStartPoint = null;
-					if (hitTempPoint) {
-						piperStartPoint = getPiperStartPoint(id, mode);
+				hitTheWall = closeToWall(current);
+				this.music = false;
+				if (hitInsidePointComing) {
+					targetPoint = getPiperStartPoint(id, mode);
+				}
+				else {
+					targetPoint = insidePoint;
+					if (distance(current, targetPoint) < 1) {
+						hitInsidePointComing = true;
 					}
-					else {
-						piperStartPoint = new Point(current.x + 10, current.y);
-						if (current.x >= dimension / 2 + 10) {
-							hitTempPoint = true;
+				}
+				dist = distance(current, targetPoint);
+				ox = (targetPoint.x - current.x) / dist * pspeed;
+				oy = (targetPoint.y - current.y) / dist * pspeed;
+			}
+			else {
+				// You've hit the top wall. Start moving downwards.
+				// If there are enough pipers, just move straight.
+				// If not enough pipers, use greedy search within own section.
+				this.music = true;
+				if (dimension / pipers.length <= 20) {
+					if (!hitBottomWall) {
+						targetPoint = getPiperEndPoint(id, mode);
+						dist = distance(current, targetPoint);
+						if (dist < 1) {
+							// You've hit the bottom wall.
+							hitBottomWall = true;
+							finishedRound = true;
 						}
 					}
-					double dist = distance(current, piperStartPoint);
-					ox = (piperStartPoint.x - current.x) / dist * pspeed;
-					oy = (piperStartPoint.y - current.y) / dist * pspeed;
-			}
+					else {
+						// You've hit the bottom wall. Take all the rats back to the gate.
+						if (!hitInsidePointGoing) {
+							targetPoint = insidePoint;
+							dist = distance(current, targetPoint);
+							if (dist < 1) {
+								hitInsidePointGoing = true;
+							}
+						}
+						else {
+							// You've hit the inside point.
+							// Wait until the straggler rats catch up.
+							
+							// Now take them to the final dropoff point.
+							targetPoint = finalDropOffPoint;
+							dist = distance(current, finalDropOffPoint);	
+						} // End hit inside point.
+							
+					} // End hit bottom wall.
+					ox = (targetPoint.x - current.x) / dist * mpspeed;
+					oy = (targetPoint.y - current.y) / dist * mpspeed;	
+				}
+				else {
+					// You don't have enough pipers to guarantee a clean sweep.
+					// Use sweep with greedy search within your vertical section.
+					
+					// Find closest rat. Move in that direction.
+					Point closestRat = findClosestRat(current, rats, pipers);
+					if (!isValidTarget(closestRat)) {
+						// All rats have been found. Move back toward gate.
+						finishedRound = true;
+						this.music = true;
+						dist = distance(current, insidePoint);
+						if (dist > 0) {
+							ox = (insidePoint.x - current.x) / dist * mpspeed;
+							oy = (insidePoint.y - current.y) / dist * mpspeed;
+						}
+						else {
+							dist = distance(current, gate);
+							ox = (gate.x - current.x) / dist * mpspeed;
+							oy = (gate.y - current.y) / dist * mpspeed;
+						}
+	//					System.out.println("move toward the left side");	
+					}
+					else {
+						// All Rats have not been found; continue to catch em.
+						dist = distance(current, closestRat);
+						
+						if( isInfluencingRats(current, rats) ) {
+							this.music = true;
+							ox = (closestRat.x - current.x) / dist * mpspeed;
+							oy = (closestRat.y - current.y) / dist * mpspeed;
+						} else {
+							this.music = false;
+							ox = (closestRat.x - current.x) / dist * pspeed;
+							oy = (closestRat.y - current.y) / dist * pspeed;
+						}
+	//					System.out.println("moved toward closest rat at " +
+	//							closestRat.x + ", " + closestRat.y);
+					}
+				}// End greedy search option.
+			} // End hit the wall option
 		}
 		current.x += ox;
 		current.y += oy;
@@ -176,37 +271,29 @@ public class Player extends piedpipers.sim.Player {
 		lastRatThetas = currentRatThetas;
 		currentRatThetas = thetas.clone();
 		
-		// If the piper is on the wrong side of the fence,
-		// it's either the end of the round or the beginning.
 		Point current = pipers[id];
 		Point gate = new Point(dimension/2, dimension/2);
 		double ox = 0; // delta x/y
 		double oy = 0;
+		Point targetPoint = new Point();
+		double dist = 0;
+		
 		switch (getSide(current)) {
 		case 0:
 			if (finishedRound) {
-				// The round is finished
-				if (distance(current, dropOffPoint) != 0) {
-					this.music = true;
-					dropOffPoint = new Point(dimension/2 - 5, dimension/2);
-					double dist = distance(current, dropOffPoint);
-					ox = (dropOffPoint.x - current.x) / dist * mpspeed;
-					oy = (dropOffPoint.y - current.y) / dist * mpspeed;
-//					System.out.println("move toward dropoff point");	
-				}
-				else {
-					if (catchUpCounter > 0) {
-						ox = 0;
-						oy = 0;
-						catchUpCounter --;
-					}
-					// else you've reached the dropoff point. Don't stop playing.
-				}
-			}
+				// You're on the left side. Proceed to final drop off point.
+				targetPoint = finalDropOffPoint;
+				dist = distance(current, targetPoint);
+				this.music = true;
+				ox = (targetPoint.x - current.x) / dist * mpspeed;
+				oy = (targetPoint.y - current.y) / dist * mpspeed;
+//						System.out.println("move toward dropoff point");			
+			} // End finishedRound case.
+			
 			else {
 				// You haven't begun collecting rats yet.
 				this.music = false;
-				double dist = distance(current, gate);
+				dist = distance(current, gate);
 				assert dist > 0;
 				ox = (gate.x - current.x) / dist * pspeed;
 				oy = (gate.y - current.y) / dist * pspeed;
@@ -227,73 +314,52 @@ public class Player extends piedpipers.sim.Player {
 					hitTheWall = closeToWall(current);
 					this.music = false;
 					Point piperStartPoint = getPiperStartPoint(id, mode); // gp = greedy predictive
-					double dist = distance(current, piperStartPoint);
+					dist = distance(current, piperStartPoint);
 					ox = (piperStartPoint.x - current.x) / dist * pspeed;
 					oy = (piperStartPoint.y - current.y) / dist * pspeed;
 			}
-			// If you've just handed off rats to another piper, you want to go for the rat that's farthest away.
-			else if (droppedRats) {
-				this.music = false;
-				if (finishedRound) {
-					// Just go back to the gate
-					double dist = distance(current, gate);
-					assert dist > 0;
-					ox = (gate.x - current.x) / dist * mpspeed;
-					oy = (gate.y - current.y) / dist * mpspeed;
-				}
-				else {
-					// Go to the location of the farthest rat
-					if (targetRat == null) {
-					targetRat = findFarthestRat(current, rats, pipers);
-					}
-					double dist = distance(current, targetRat);
-					ox = (targetRat.x - current.x) / dist * pspeed;
-					oy = (targetRat.y - current.y) / dist * pspeed;	
-					if (dist < 10) {
-						this.music = true;
-						droppedRats = false;
-					}
-				}
-			}
 			else {
-				// See if there's a playing piper nearby and if you are carrying rats
-				int closestPiperId = findClosestPiper(id, pipers);
-				if( closestPiperId != -1
-					&& closestPiperId < id
-					&& pipermusic[closestPiperId]
-					&& isInfluencingRats(current, rats) 
-					&& distance(current, pipers[closestPiperId]) < piperDropDistance) {
-					// if the piper close by is senior: drop the rats & run off
-					this.music = false;
-					droppedRats = true;
-				} else {
-					// Find closest rat. Move in that direction.
-					Point closestRat = findClosestRat(current, rats, pipers);
-					if (!isValidTarget(closestRat)) {
-						// All rats have been found. Move back toward gate.
-						finishedRound = true;
-						this.music = true;
-						double dist = distance(current, gate);
-						assert dist > 0;
-						ox = (gate.x - current.x) / dist * mpspeed;
-						oy = (gate.y - current.y) / dist * mpspeed;
-//						System.out.println("move toward the left side");	
+				// Find closest rat. Move in that direction.
+				Point closestRat = findClosestRat(current, rats, pipers);
+				if (!isValidTarget(closestRat)) {
+					// All rats have been found. Move back toward gate.
+					finishedRound = true;
+					this.music = true;
+					
+					dist = distance(current, insidePoint);
+					if (!hitInsidePointGoing) {
+						// Go to the inside point first.
+						targetPoint = insidePoint;
+						dist = distance(current, targetPoint);
+						ox = (targetPoint.x - current.x) / dist * mpspeed;
+						oy = (targetPoint.y - current.y) / dist * mpspeed;
+						// Update hitInsidePoint
+						if (dist < 1) {
+							hitInsidePointGoing = true;
+						}
 					}
 					else {
-						// All Rats have not been found; continue to catch em.
-						double dist = distance(current, closestRat);
-						
-						if( isInfluencingRats(current, rats) ) {
-							this.music = true;
-							ox = (closestRat.x - current.x) / dist * mpspeed;
-							oy = (closestRat.y - current.y) / dist * mpspeed;
-						} else {
-							this.music = false;
-							ox = (closestRat.x - current.x) / dist * pspeed;
-							oy = (closestRat.y - current.y) / dist * pspeed;
-						}
-//						System.out.println("moved toward closest rat at " +
-//								closestRat.x + ", " + closestRat.y);
+						// You've hit the inside point.
+						// Wait until the straggler rats catch up.
+						// Now take them to the final dropoff point.
+						targetPoint = finalDropOffPoint;
+						dist = distance(current, targetPoint);
+						ox = (targetPoint.x - current.x) / dist * mpspeed;
+						oy = (targetPoint.y - current.y) / dist * mpspeed;
+					}
+				}
+				else {
+					// All Rats have not been found; continue to catch em.
+					dist = distance(current, closestRat);
+					
+					if( isInfluencingRats(current, rats) ) {
+						this.music = true;
+						ox = (closestRat.x - current.x) / dist * mpspeed;
+						oy = (closestRat.y - current.y) / dist * mpspeed;
+					} else {
+						this.music = false;
+						ox = (closestRat.x - current.x) / dist * pspeed;
+						oy = (closestRat.y - current.y) / dist * pspeed;
 					}
 				}
 			}
@@ -325,6 +391,13 @@ public class Player extends piedpipers.sim.Player {
 		}
 	}
 	
+	/**
+	 * Sweep, PG (predictive/partitioned greedy)
+	 * Finds each piper's place along the initial wall, depending on mode.
+	 * @param id
+	 * @param mode
+	 * @return
+	 */
 	Point getPiperStartPoint(int id, String mode) {
 		int[] boundary = boundaries.get(id);
 		if (mode.equals("gp")) {
@@ -338,6 +411,14 @@ public class Player extends piedpipers.sim.Player {
 			int startY = 0;
 			return new Point(startX, startY);
 		}	
+	}
+	
+	Point getPiperEndPoint(int id, String mode) {
+		int[] boundary = boundaries.get(id);
+		//if (mode.equals("sweep")) {
+			int endX = boundary[0] + (boundary[1] - boundary[0]) / 2;
+			int endY = dimension;
+			return new Point(endX, endY);
 	}
 	
 	void resetCatchUpCounter() {
@@ -446,7 +527,7 @@ public class Player extends piedpipers.sim.Player {
 			return rats[farthestRatIndex];
 		}
 		else {
-			// X == near
+			// X == close
 			// Sequentially check one future tick at a time; as soon as a rat is
 			// inside the future tick circle, choose that rat.
 			for (int i = 0; i < predictionLookAhead; i++) {
@@ -530,6 +611,7 @@ public class Player extends piedpipers.sim.Player {
 		if (Math.abs(current.y-dimension)<pspeed) {
 			wall = true;
 		}
+		// Top wall
 		if (Math.abs(current.y)<pspeed) {
 			wall = true;
 		}
