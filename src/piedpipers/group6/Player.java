@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Random;
 
 import piedpipers.sim.Point;
-import piedpipers.group6redirect.RedirectPlayer;
+import piedpipers.group6.RedirectPlayer;
 
 public class Player extends piedpipers.sim.Player {
 	static RedirectPlayer rPlayer;
